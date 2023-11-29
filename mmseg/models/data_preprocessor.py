@@ -156,9 +156,9 @@ class PMSegDataPreProcessor(BaseDataPreprocessor):
     def __init__(
         self,
         mean: Sequence[Number] = None,
-        t_mean: Sequence[Number] = None,
+        # t_mean: Sequence[Number] = None,
         std: Sequence[Number] = None,
-        t_std: Sequence[Number] = None,
+        # t_std: Sequence[Number] = None,
         size: Optional[tuple] = None,
         size_divisor: Optional[int] = None,
         pad_val: Number = 0,
@@ -191,18 +191,18 @@ class PMSegDataPreProcessor(BaseDataPreprocessor):
         else:
             self._enable_normalize = False
 
-        if t_mean is not None:
-            assert t_std is not None, 'To enable the normalization in target' \
-                                    'preprocessing, please specify both ' \
-                                    '`t_mean` and `t_std`.'
-            # Enable the normalization in preprocessing.
-            self._enable_target_normalize = True
-            self.register_buffer('t_mean',
-                                 torch.tensor(t_mean).view(-1, 1, 1), False)
-            self.register_buffer('t_std',
-                                 torch.tensor(t_std).view(-1, 1, 1), False)
-        else:
-            self._enable_target_normalize = False
+        # if t_mean is not None:
+        #     assert t_std is not None, 'To enable the normalization in target' \
+        #                             'preprocessing, please specify both ' \
+        #                             '`t_mean` and `t_std`.'
+        #     # Enable the normalization in preprocessing.
+        #     self._enable_target_normalize = True
+        #     self.register_buffer('t_mean',
+        #                          torch.tensor(t_mean).view(-1, 1, 1), False)
+        #     self.register_buffer('t_std',
+        #                          torch.tensor(t_std).view(-1, 1, 1), False)
+        # else:
+        #     self._enable_target_normalize = False
 
         # TODO: support batch augmentations.
         self.batch_augments = batch_augments
@@ -237,8 +237,8 @@ class PMSegDataPreProcessor(BaseDataPreprocessor):
 
         if self._enable_normalize:
             inputs = [(_input - self.mean) / self.std for _input in inputs]
-        if self._enable_target_normalize and targets is not None:
-            targets = [(_target - self.t_mean) / self.t_std for _target in targets]
+            if targets is not None:
+                targets = [(_target - self.mean) / self.std for _target in targets]
 
         if training:
             assert data_samples is not None, ('During training, ',

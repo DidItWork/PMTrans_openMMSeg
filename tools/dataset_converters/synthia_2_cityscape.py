@@ -19,7 +19,30 @@ def main():
 
     gt_dir = args.synthia_GT_path
 
-    mappings = [255,10,2,0,1,4,8,5,13,7,11,18,17,0,255,6,9,12,14,15,16,3,0]
+    mappings = [255, #0
+                10, #1
+                2, #2
+                0, #3
+                1, #4
+                4, #5
+                8, #6
+                5, #7
+                13, #8
+                7, #9
+                11, #10
+                18, #11
+                17, #12
+                0, #13
+                255, #14
+                6, #15
+                9, #16
+                12, #17
+                14, #18
+                15, #19
+                16, #20
+                3, #21
+                0 #22
+                ]
     
     for img_path in scandir(gt_dir, '_trainLabels.png', recursive=True):
         print(f'Converting {img_path}')

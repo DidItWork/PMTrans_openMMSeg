@@ -16,7 +16,7 @@ from .base import BaseSegmentor
 
 import os
 
-os.environ['CUDA_LAUNCH_BLOCKING']='1'
+# os.environ['CUDA_LAUNCH_BLOCKING']='1'
 
 
 @MODELS.register_module()
@@ -198,13 +198,16 @@ class PMTrans(BaseSegmentor):
         
         #Returns a list of lambdas according to the number of layers of attention scores
 
+        # print("Source attention", s_scores[0][0].shape, torch.sum(s_scores[0][0][0]))
+        # print("Target attention", t_scores[0][0].shape, torch.sum(t_scores[0][0][0]))
+
         s_lambdas = []
 
         s_lambda = nn.Flatten()(s_lambda)
         
         for i in range(len(s_scores)):
 
-            num_patch = s_scores[i].shape[-1]
+            num_patch = s_scores[i].shape[-1] #'Source' patches in attention
 
             s_l = nn.AdaptiveAvgPool1d(num_patch)(s_lambda)
             
@@ -212,8 +215,8 @@ class PMTrans(BaseSegmentor):
             
             # print("shapes",s_scores[i].shape,s_lambda.shape)
 
-            s_lambda = torch.einsum('BLK,BK->BL',s_scores[i], s_l)/num_patch
-            t_lambda = torch.einsum('BLK,BK->BL',t_scores[i], t_l)/num_patch
+            s_lambda = torch.einsum('BLK,BK->BL',s_scores[i], s_l)
+            t_lambda = torch.einsum('BLK,BK->BL',t_scores[i], t_l)
             s_lambdas.append(s_lambda/(s_lambda+t_lambda))
 
         return s_lambdas
@@ -239,15 +242,33 @@ class PMTrans(BaseSegmentor):
 
         s_label_tensor = []
 
+        # print(s_label[0].metainfo,s_label[0])
+
         for label in s_label:
             # print(F.one_hot(label.gt_sem_seg.data.squeeze()).float())
-            s_label_tensor.append(F.one_hot(label.gt_sem_seg.data.squeeze(),num_classes=256).float()) #C H W to H W C
+            # padding_bot = label.metainfo['padding_size'][-1]
+            # padding_right = label.metainfo['padding_size'][1]
+            # print(padding_bot,padding_right)
+            # hw = label.gt_sem_seg.data.squeeze().shape[-2:]
+            # cropped = label.gt_sem_seg.data.squeeze()[:hw[0]-padding_bot,:hw[1]-padding_right]
+            # cropped = F.one_hot(cropped,num_classes=256)[:,:,:self.num_classes].permute(2,0,1).unsqueeze(0) #H W C to C H W
+            # print(cropped.shape,cropped)
+            # s_cropped = F.interpolate(cropped.float(), (cropped.shape[-2]+padding_bot,cropped.shape[-1]+padding_right)).squeeze(0) #scale to full size
+            # print(s_cropped)
+            # print(cropped.shape)
+            
+            # print(cropped.shape)
+            # s_label_tensor.append(s_cropped)
+
+            label_onehot = F.one_hot(label,num_classes=256)[:,:,:self.num_classes].permute(2,0,1)
+
+            s_label_tensor.append(label_onehot)
         
         s_label_tensor = torch.stack(s_label_tensor, dim=0)
 
-        # print(s_label_tensor.shape)
+        # print(s_label_tensor[0])
         
-        slabel = torch.einsum('AHWC,BHWC->ABHW',s_label_tensor,s_label_tensor)
+        slabel = torch.einsum('ACHW,BCHW->ABHW',s_label_tensor,s_label_tensor)
 
         for p in range(len(preds)):
             label = nn.AdaptiveAvgPool2d(preds[p].shape[-2:])(slabel)
@@ -256,7 +277,7 @@ class PMTrans(BaseSegmentor):
             mixup_losses += mixup_loss/torch.numel(lam[p])
             # print('Supervised',mixup_losses)
         
-        return mixup_losses #N H x W
+        return mixup_losses/len(preds) #N H x W
 
 
     def mixup_unsupervised_dis(self, preds, lam):
@@ -279,11 +300,11 @@ class PMTrans(BaseSegmentor):
             mixup_losses += mixup_loss/torch.numel(lam[p])
             # print('Unsupervised',mixup_losses)
 
-        return mixup_losses #N H x W
+        return mixup_losses/len(preds) #N H x W
     
     def mixup_soft_ce(self, pred, labels, weight, lam):
 
-        loss = torch.tensor(0.,requires_grad=True).cuda()
+        # loss = torch.tensor(0.,requires_grad=True).cuda()
 
         if type(labels)==list:
 
@@ -312,11 +333,13 @@ class PMTrans(BaseSegmentor):
 
             labels = nn.Softmax(dim=1)(labels)
 
+            # print("label dimensions",labels)
+
             loss_ = torch.nn.CrossEntropyLoss(reduction='none',weight=weight)(pred,labels)
 
             # print('loss',loss_.shape,loss_)
 
-        loss += torch.sum(torch.einsum('BHW,BHW->HW', loss_, lam)/torch.sum(weight))
+        loss = torch.sum(torch.mul(loss_, lam))
         # loss = loss*torch.sum(lam,dim=0)
         return loss
     
@@ -337,8 +360,6 @@ class PMTrans(BaseSegmentor):
         s_lambda = self.mix_lambda_atten(s_scores, t_scores, s_lambda) #B x HW
 
         t_lambda = []
-
-        # print(s_token[0].device,s_lambda[0].device,m_s_t_logits[0].device)
 
         for i in range(len(s_lambda)):
             #Reshape s_lambda to layers x B x H x W
@@ -414,11 +435,12 @@ class PMTrans(BaseSegmentor):
 
         # x = self.extract_feat(target)
 
-        # Backbone produces feature maps of sizes: 1/4, 1/8, 1/16, 1/32
-
-        #Additional losses from patch-mixing
-
         """
+        Additional losses from patch-mixing
+
+        Backbone produces feature maps of sizes: 1/4, 1/8, 1/16, 1/32
+        Attention sr_ratios=[8, 4, 2, 1]
+
         logits: len(self.out_indices) x B x C x H x W
         patch: B x C x H X W
         attns: len(self.out_indices) x B x HW x HW
@@ -449,10 +471,10 @@ class PMTrans(BaseSegmentor):
 
         s_lambda = 1-t_lambda
 
-        # for i in range(len(t_lambda)):
-        #     s_lambda.append(1-t_lambda[i])
-
         #Returns dictionaries of mixup losses
+
+        # print(self.s_dist_alpha, self.s_dist_beta, self.super_ratio, self.unsuper_ratio)
+
         super_m_s_t_loss, unsuper_m_s_t_loss = self.mix_source_target(s_p,t_p,s_lambda,t_lambda,
                                                                       pred,data_samples,s_logits,
                                                                       t_logits,s_attn,t_attn,

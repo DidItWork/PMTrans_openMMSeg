@@ -2,9 +2,7 @@
 norm_cfg = dict(type='SyncBN', requires_grad=True)
 data_preprocessor = dict(
     type='PMSegDataPreProcessor',
-    t_mean=[123.675, 116.28, 103.53],
     mean=[123.675, 116.28, 103.53],
-    t_std=[58.395, 57.12, 57.375],
     std=[58.395, 57.12, 57.375],
     bgr_to_rgb=True,
     pad_val=0,

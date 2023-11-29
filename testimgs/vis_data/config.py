@@ -56,7 +56,7 @@ img_ratios = [
     1.75,
 ]
 launcher = 'none'
-load_from = 'work_dirs/pmtrans/iter_8000.pth'
+load_from = 'work_dirs/pmtrans/iter_16000.pth'
 log_level = 'INFO'
 log_processor = dict(by_epoch=False)
 model = dict(

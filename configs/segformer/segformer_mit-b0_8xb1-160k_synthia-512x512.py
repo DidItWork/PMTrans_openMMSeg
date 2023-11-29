@@ -1,15 +1,16 @@
 _base_ = [
-    '../_base_/models/pmtrans_mit-b0.py',
-    '../_base_/datasets/syn2city_760x760.py',
-    '../_base_/default_runtime.py', '../_base_/schedules/schedule_40k.py'
+    '../_base_/models/segformer_mit-b0.py',
+    '../_base_/datasets/synthia_512x512.py',
+    '../_base_/default_runtime.py', '../_base_/schedules/schedule_160k.py'
 ]
-crop_size = (760, 760)
+crop_size = (512, 512)
+stride = (384, 384) #0.75 of crop window
 data_preprocessor = dict(size=crop_size)
 checkpoint = 'https://download.openmmlab.com/mmsegmentation/v0.5/pretrain/segformer/mit_b0_20220624-7e0fe6dd.pth'  # noqa
 model = dict(
     data_preprocessor=data_preprocessor,
     backbone=dict(init_cfg=dict(type='Pretrained', checkpoint=checkpoint)),
-    test_cfg=dict(mode='slide', crop_size=(760, 760), stride=(570, 570)))
+    test_cfg=dict(mode='slide', crop_size=crop_size, stride=stride))
 
 optim_wrapper = dict(
     _delete_=True,

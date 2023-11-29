@@ -512,14 +512,15 @@ class MixVisionTransformer_PM(MixVisionTransformer):
                 x, hw_shape = layer[0](x)
             else:
                 hw_shape = x.shape[-2:]
-                # print("H W", hw_shape)
                 x = nchw_to_nlc(x)
+
             if i==0: patch = nlc_to_nchw(x, hw_shape) #get first patch
+
             for block in layer[1]:
                 x,attn = block(x, hw_shape)
             x = layer[2](x)
             x = nlc_to_nchw(x, hw_shape)
-            # attn = nlc_to_nchw(attn, hw_shape)
+
             if i in self.out_indices:
                 outs.append(x)
                 attns.append(attn)
