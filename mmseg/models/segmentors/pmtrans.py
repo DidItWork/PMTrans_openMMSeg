@@ -302,15 +302,19 @@ class PMTrans(BaseSegmentor):
         
         else:
 
+            # print('tensors',pred,labels)
+
             pred = F.interpolate(pred,lam.shape[-2:],mode='bilinear',align_corners=True)
 
             # print(labels.shape)
 
             labels = F.interpolate(labels,lam.shape[-2:],mode='bilinear',align_corners=True)
 
+            labels = nn.Softmax(dim=1)(labels)
+
             loss_ = torch.nn.CrossEntropyLoss(reduction='none',weight=weight)(pred,labels)
 
-            print('tensors',pred,labels,loss_)
+            # print('loss',loss_.shape,loss_)
 
         loss += torch.sum(torch.einsum('BHW,BHW->HW', loss_, lam)/torch.sum(weight))
         # loss = loss*torch.sum(lam,dim=0)
@@ -327,7 +331,7 @@ class PMTrans(BaseSegmentor):
         m_s_t_logits, m_s_t_p, _ = self.backbone.forward_features(m_s_t_token, p_in=True)
 
         # print("Generating intermediate domain predictions")
-        m_s_t_pred = self.inference(m_s_t_logits)
+        m_s_t_pred = self.decode_head.forward(m_s_t_logits)
 
         # print("Mixing Lambda Attention")
         s_lambda = self.mix_lambda_atten(s_scores, t_scores, s_lambda) #B x HW
@@ -378,7 +382,7 @@ class PMTrans(BaseSegmentor):
         super_m_s_t_s_loss = self.mixup_soft_ce(m_s_t_pred, infer_label, weight_src, s_lam)
         unsuper_m_s_t_loss = self.mixup_soft_ce(m_s_t_pred, pred, weight_tgt, t_lam)
 
-        print("labels losses", super_m_s_t_s_loss, unsuper_m_s_t_loss)
+        # print("labels losses", super_m_s_t_s_loss, unsuper_m_s_t_loss)
 
         label_space_loss = self.softplus(self.unsuper_ratio)*(super_m_s_t_s_loss + unsuper_m_s_t_loss)/torch.numel(s_lam)
 
