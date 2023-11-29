@@ -260,9 +260,9 @@ class PMTrans(BaseSegmentor):
             # print(cropped.shape)
             # s_label_tensor.append(s_cropped)
 
-            label_onehot = F.one_hot(label,num_classes=256)[:,:,:self.num_classes].permute(2,0,1)
+            label_onehot = F.one_hot(label.gt_sem_seg.data.squeeze(),num_classes=256)[:,:,:self.num_classes].permute(2,0,1)
 
-            s_label_tensor.append(label_onehot)
+            s_label_tensor.append(label_onehot.float())
         
         s_label_tensor = torch.stack(s_label_tensor, dim=0)
 
