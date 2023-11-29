@@ -1,13 +1,13 @@
 # dataset settings
-dataset_type = 'CityscapesDataset'
-data_root = 'data/cityscapes/'
-crop_size = (512, 1024)
+dataset_type = 'SynthiaDataset'
+data_root = 'data/synthia/'
+crop_size = (380, 640)
 train_pipeline = [
     dict(type='LoadImageFromFile'),
     dict(type='LoadAnnotations'),
     dict(
         type='RandomResize',
-        scale=(2048, 1024),
+        scale=(1280, 760),
         ratio_range=(0.5, 2.0),
         keep_ratio=True),
     dict(type='RandomCrop', crop_size=crop_size, cat_max_ratio=0.75),
@@ -17,7 +17,7 @@ train_pipeline = [
 ]
 test_pipeline = [
     dict(type='LoadImageFromFile'),
-    dict(type='Resize', scale=(2048, 1024), keep_ratio=True),
+    dict(type='Resize', scale=(1280, 760), keep_ratio=True),
     # add loading annotation after ``Resize`` because ground truth
     # does not need to do resize data transform
     dict(type='LoadAnnotations'),
@@ -48,7 +48,7 @@ train_dataloader = dict(
         type=dataset_type,
         data_root=data_root,
         data_prefix=dict(
-            img_path='leftImg8bit/train', seg_map_path='gtFine/train'),
+            img_path='RGB/train', seg_map_path='GT/train'),
         pipeline=train_pipeline))
 val_dataloader = dict(
     batch_size=1,
@@ -59,20 +59,19 @@ val_dataloader = dict(
         type=dataset_type,
         data_root=data_root,
         data_prefix=dict(
-            img_path='leftImg8bit/val', seg_map_path='gtFine/val'),
+            img_path='RGB/val', seg_map_path='GT/val'),
         pipeline=test_pipeline))
-# test_dataloader = dict(
-#     batch_size=1,
-#     num_workers=4,
-#     persistent_workers=True,
-#     sampler=dict(type='DefaultSampler', shuffle=False),
-#     dataset=dict(
-#         type=dataset_type,
-#         data_root=data_root,
-#         data_prefix=dict(
-#             img_path='rightImg8bit/test', seg_map_path='gtFine/test'),
-#         pipeline=test_pipeline))
-test_dataloader = val_dataloader
+test_dataloader = dict(
+    batch_size=1,
+    num_workers=4,
+    persistent_workers=True,
+    sampler=dict(type='DefaultSampler', shuffle=False),
+    dataset=dict(
+        type=dataset_type,
+        data_root=data_root,
+        data_prefix=dict(
+            img_path='RGB/test', seg_map_path='GT/test'),
+        pipeline=test_pipeline))
 
 val_evaluator = dict(type='IoUMetric', iou_metrics=['mIoU'])
 test_evaluator = val_evaluator

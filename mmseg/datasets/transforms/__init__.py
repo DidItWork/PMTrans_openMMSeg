@@ -1,5 +1,5 @@
 # Copyright (c) OpenMMLab. All rights reserved.
-from .formatting import PackSegInputs
+from .formatting import PackSegInputs, PackSegInputsTargets
 from .loading import (LoadAnnotations, LoadBiomedicalAnnotation,
                       LoadBiomedicalData, LoadBiomedicalImageFromFile,
                       LoadDepthAnnotation, LoadImageFromNDArray,
@@ -26,5 +26,5 @@ __all__ = [
     'BioMedical3DRandomFlip', 'BioMedicalRandomGamma', 'BioMedical3DPad',
     'RandomRotFlip', 'Albu', 'LoadSingleRSImageFromFile', 'ConcatCDInput',
     'LoadMultipleRSImageFromFile', 'LoadDepthAnnotation', 'RandomDepthMix',
-    'RandomFlip', 'Resize'
+    'RandomFlip', 'Resize', 'PackSegInputsTargets'
 ]

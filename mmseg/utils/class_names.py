@@ -11,6 +11,16 @@ def cityscapes_classes():
         'bicycle'
     ]
 
+def synthia_classes():
+    """Synthia class names for external use."""
+    return [
+        'road', 'sidewalk', 'building', 'wall', 'fence', 'pole',
+        'traffic light', 'traffic sign', 'vegetation', 'terrain',
+        'sky', 'person', 'rider', 'car', 'truck', 'bus', 'train',
+        'motorcycle', 'bicycle', 'void', 'parking-lot', 'road-work',
+        'lanemarking'
+    ]
+
 
 def ade_classes():
     """ADE20K class names for external use."""
@@ -269,6 +279,15 @@ def cityscapes_palette():
             [255, 0, 0], [0, 0, 142], [0, 0, 70], [0, 60, 100], [0, 80, 100],
             [0, 0, 230], [119, 11, 32]]
 
+def synthia_palette():
+    """Synthia palette for external use."""
+    return [[128, 64, 128], [244, 35, 232], [70, 70, 70], [102, 102, 156],
+            [64, 64, 128], [153, 153, 153], [250, 170, 30], [220, 220, 0],
+            [107, 142, 35], [152, 251, 152], [70, 130, 180],
+            [220, 20, 60], [255, 0, 0], [0, 0, 142], [0, 0, 70],
+            [0, 60, 100], [0, 80, 100], [0, 0, 230], [119, 11, 32],[0, 0, 0],
+            [250, 170, 160], [128, 64, 64], [102, 102, 156]]
+
 
 def ade_palette():
     """ADE20K palette for external use."""
@@ -475,6 +494,7 @@ def bdd100k_palette():
 
 dataset_aliases = {
     'cityscapes': ['cityscapes'],
+    'synthia': ['synthia'],
     'ade': ['ade', 'ade20k'],
     'voc': ['voc', 'pascal_voc', 'voc12', 'voc12aug'],
     'pcontext': ['pcontext', 'pascal_context', 'voc2010'],

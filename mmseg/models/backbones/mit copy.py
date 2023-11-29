@@ -5,7 +5,6 @@ import warnings
 import torch
 import torch.nn as nn
 import torch.utils.checkpoint as cp
-import torch.distributions as dists
 from mmcv.cnn import Conv2d, build_activation_layer, build_norm_layer
 from mmcv.cnn.bricks.drop import build_dropout
 from mmcv.cnn.bricks.transformer import MultiheadAttention
@@ -179,14 +178,12 @@ class EfficientMultiheadAttention(MultiheadAttention):
             x_q = x_q.transpose(0, 1)
             x_kv = x_kv.transpose(0, 1)
 
-        out,attn = self.attn(query=x_q, key=x_kv, value=x_kv)
+        out = self.attn(query=x_q, key=x_kv, value=x_kv)[0]
 
         if self.batch_first:
             out = out.transpose(0, 1)
 
-        out = self.proj_drop(out)
-
-        return identity + self.dropout_layer(out), attn
+        return identity + self.dropout_layer(self.proj_drop(out))
 
     def legacy_forward(self, x, hw_shape, identity=None):
         """multi head attention forward in mmcv version < 1.3.17."""
@@ -209,9 +206,9 @@ class EfficientMultiheadAttention(MultiheadAttention):
         # `need_weights=False` to ignore `attn_output_weights.sum(dim=1)`.
         # This issue - `https://github.com/pytorch/pytorch/issues/37583` report
         # the error that large scale tensor sum operation may cause cuda error.
-        out, attn = self.attn(query=x_q, key=x_kv, value=x_kv, need_weights=False)
+        out = self.attn(query=x_q, key=x_kv, value=x_kv, need_weights=False)[0]
 
-        return identity + self.dropout_layer(self.proj_drop(out)), attn
+        return identity + self.dropout_layer(self.proj_drop(out))
 
 
 class TransformerEncoderLayer(BaseModule):
@@ -287,15 +284,15 @@ class TransformerEncoderLayer(BaseModule):
     def forward(self, x, hw_shape):
 
         def _inner_forward(x):
-            x,attn = self.attn(self.norm1(x), hw_shape, identity=x)
+            x = self.attn(self.norm1(x), hw_shape, identity=x)
             x = self.ffn(self.norm2(x), hw_shape, identity=x)
-            return x,attn
+            return x
 
         if self.with_cp and x.requires_grad:
-            x,attn = cp.checkpoint(_inner_forward, x)
+            x = cp.checkpoint(_inner_forward, x)
         else:
-            x,attn = _inner_forward(x)
-        return x,attn
+            x = _inner_forward(x)
+        return x
 
 
 @MODELS.register_module()
@@ -444,127 +441,10 @@ class MixVisionTransformer(BaseModule):
         for i, layer in enumerate(self.layers):
             x, hw_shape = layer[0](x)
             for block in layer[1]:
-                x,attn = block(x, hw_shape)
+                x = block(x, hw_shape)
             x = layer[2](x)
             x = nlc_to_nchw(x, hw_shape)
             if i in self.out_indices:
                 outs.append(x)
 
         return outs
-    
-
-@MODELS.register_module()
-class MixVisionTransformer_PM(MixVisionTransformer):
-
-    "Modified backbone of PMTrans built ontop of segformer backbone"
-
-    # def __init__(self,
-    #              in_channels=3,
-    #              embed_dims=64,
-    #              num_stages=4,
-    #              num_layers=[3, 4, 6, 3],
-    #              num_heads=[1, 2, 4, 8],
-    #              patch_sizes=[7, 3, 3, 3],
-    #              strides=[4, 2, 2, 2],
-    #              sr_ratios=[8, 4, 2, 1],
-    #              out_indices=(0, 1, 2, 3),
-    #              mlp_ratio=4,
-    #              qkv_bias=True,
-    #              drop_rate=0.,
-    #              attn_drop_rate=0.,
-    #              drop_path_rate=0.,
-    #              act_cfg=dict(type='GELU'),
-    #              norm_cfg=dict(type='LN', eps=1e-6),
-    #              pretrained=None,
-    #              init_cfg=None,
-    #              with_cp=False):
-    #     super().__init__(in_channels,
-    #              embed_dims=embed_dims,
-    #              num_stages=num_stages,
-    #              num_layers=num_layers,
-    #              num_heads=num_heads,
-    #              patch_sizes=patch_sizes,
-    #              strides=strides,
-    #              sr_ratios=sr_ratios,
-    #              out_indices=out_indices,
-    #              mlp_ratio=mlp_ratio,
-    #              qkv_bias=qkv_bias,
-    #              drop_rate=drop_rate,
-    #              attn_drop_rate=attn_drop_rate,
-    #              drop_path_rate=drop_path_rate,
-    #              act_cfg=act_cfg,
-    #              norm_cfg=norm_cfg,
-    #              pretrained=pretrained,
-    #              init_cfg=init_cfg,
-    #              with_cp=with_cp)
-        
-    #     self.s_dist_alpha = nn.Parameter(torch.Tensor([1]))
-    #     self.s_dist_beta = nn.Parameter(torch.Tensor([1]))
-    #     self.super_ratio = nn.Parameter(torch.Tensor([-2]))
-    #     self.unsuper_ratio = nn.Parameter(torch.Tensor([-2]))
-        
-    def forward_features(self,x, p_in=False):
-        outs = []
-        attns = []
-
-        for i, layer in enumerate(self.layers):
-            if not p_in or i>0: 
-                x, hw_shape = layer[0](x)
-            else:
-                hw_shape = x.shape[-2:]
-                # print("H W", hw_shape)
-                x = nchw_to_nlc(x)
-            if i==0: patch = nlc_to_nchw(x, hw_shape) #get first patch
-            for block in layer[1]:
-                x,attn = block(x, hw_shape)
-            x = layer[2](x)
-            x = nlc_to_nchw(x, hw_shape)
-            # attn = nlc_to_nchw(attn, hw_shape)
-            if i in self.out_indices:
-                outs.append(x)
-                attns.append(attn)
-        
-        """
-        outs: len(self.out_indices) x B x C x H x W
-        patch: B x C x H X W
-        attns: len(self.out_indices) x B x HW x HW
-        """
-
-        return outs, patch, attns
-    
-    
-    # def forward(self, target, source=None):
-    #     outs = []
-
-    #     device = target.device
-
-    #     B = target.shape[0]
-
-    #     print("Original shape of target:", target.shape) #B C H W
-
-    #     for i, layer in enumerate(self.layers):
-    #         target, t_hw_shape = layer[0](target)
-    #         if source!=None:
-    #             source, s_hw_shape = layer[0](source)
-    #             t_lambda = dists.Beta(self.softplus(self.s_dist_alpha), self.softplus(self.s_dist_beta)).rsample((B, t_hw_shape[0],)).to(device).squeeze(-1)
-    #             s_lambda = 1 - t_lambda
-                
-    #         print("Shape of target:",target.shape,t_hw_shape)
-    #         for block in layer[1]:
-    #             target = block(target, t_hw_shape)
-    #             if source!=None:
-    #                 source = block(source, s_hw_shape)
-            
-    #         if source!=None:
-    #             self.mix_source_target(source,target,s_lambda,t_lambda,
-    #                                    pred,infer_label,s_logits,t_logits,
-    #                                    s_scores,t_scores,mem_fea,img_idx,
-    #                                    mem_cls,weight_tgt,weight_src,)
-    #         target = layer[2](target)
-    #         target = nlc_to_nchw(target, t_hw_shape)
-    #         if i in self.out_indices:
-    #             outs.append(target)
-
-    #     return outs
-        
-

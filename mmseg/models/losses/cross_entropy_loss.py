@@ -16,7 +16,8 @@ def cross_entropy(pred,
                   reduction='mean',
                   avg_factor=None,
                   ignore_index=-100,
-                  avg_non_ignore=False):
+                  avg_non_ignore=False,
+                  epsilon=0.0):
     """cross_entropy. The wrapper function for :func:`F.cross_entropy`
 
     Args:
@@ -38,6 +39,8 @@ def cross_entropy(pred,
         avg_non_ignore (bool): The flag decides to whether the loss is
             only averaged over non-ignored targets. Default: False.
             `New in version 0.23.0.`
+        epsilon (float): label smoothing regularizer
+        Equation: y = (1-epsilon) * y + epsilon / K.
     """
 
     # class_weight is a manual rescaling weight given to each class.
@@ -47,7 +50,8 @@ def cross_entropy(pred,
         label,
         weight=class_weight,
         reduction='none',
-        ignore_index=ignore_index)
+        ignore_index=ignore_index,
+        label_smoothing=epsilon)
 
     # apply weights and do the reduction
     # average loss over non-ignored elements
@@ -236,7 +240,8 @@ class CrossEntropyLoss(nn.Module):
                  class_weight=None,
                  loss_weight=1.0,
                  loss_name='loss_ce',
-                 avg_non_ignore=False):
+                 avg_non_ignore=False,
+                 epsilon=0.0):
         super().__init__()
         assert (use_sigmoid is False) or (use_mask is False)
         self.use_sigmoid = use_sigmoid
@@ -245,6 +250,7 @@ class CrossEntropyLoss(nn.Module):
         self.loss_weight = loss_weight
         self.class_weight = get_class_weight(class_weight)
         self.avg_non_ignore = avg_non_ignore
+        self.epsilon = epsilon
         if not self.avg_non_ignore and self.reduction == 'mean':
             warnings.warn(
                 'Default ``avg_non_ignore`` is False, if you would like to '
@@ -291,6 +297,7 @@ class CrossEntropyLoss(nn.Module):
             avg_factor=avg_factor,
             avg_non_ignore=self.avg_non_ignore,
             ignore_index=ignore_index,
+            epsilon=self.epsilon,
             **kwargs)
         return loss_cls
 

@@ -132,7 +132,6 @@ class LoadAnnotations(MMCV_LoadAnnotations):
         repr_str += f'backend_args={self.backend_args})'
         return repr_str
 
-
 @TRANSFORMS.register_module()
 class LoadImageFromNDArray(LoadImageFromFile):
     """Load an image from ``results['img']``.

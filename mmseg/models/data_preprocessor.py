@@ -6,7 +6,7 @@ import torch
 from mmengine.model import BaseDataPreprocessor
 
 from mmseg.registry import MODELS
-from mmseg.utils import stack_batch
+from mmseg.utils import stack_batch, dual_stack_batch
 
 
 @MODELS.register_module()
@@ -149,3 +149,131 @@ class SegDataPreProcessor(BaseDataPreprocessor):
                 inputs = torch.stack(inputs, dim=0)
 
         return dict(inputs=inputs, data_samples=data_samples)
+
+@MODELS.register_module()
+class PMSegDataPreProcessor(BaseDataPreprocessor):
+
+    def __init__(
+        self,
+        mean: Sequence[Number] = None,
+        t_mean: Sequence[Number] = None,
+        std: Sequence[Number] = None,
+        t_std: Sequence[Number] = None,
+        size: Optional[tuple] = None,
+        size_divisor: Optional[int] = None,
+        pad_val: Number = 0,
+        seg_pad_val: Number = 255,
+        bgr_to_rgb: bool = False,
+        rgb_to_bgr: bool = False,
+        batch_augments: Optional[List[dict]] = None,
+        test_cfg: dict = None,
+    ):
+        super().__init__()
+        self.size = size
+        self.size_divisor = size_divisor
+        self.pad_val = pad_val
+        self.seg_pad_val = seg_pad_val
+
+        assert not (bgr_to_rgb and rgb_to_bgr), (
+            '`bgr2rgb` and `rgb2bgr` cannot be set to True at the same time')
+        self.channel_conversion = rgb_to_bgr or bgr_to_rgb
+
+        if mean is not None:
+            assert std is not None, 'To enable the normalization in ' \
+                                    'preprocessing, please specify both ' \
+                                    '`mean` and `std`.'
+            # Enable the normalization in preprocessing.
+            self._enable_normalize = True
+            self.register_buffer('mean',
+                                 torch.tensor(mean).view(-1, 1, 1), False)
+            self.register_buffer('std',
+                                 torch.tensor(std).view(-1, 1, 1), False)
+        else:
+            self._enable_normalize = False
+
+        if t_mean is not None:
+            assert t_std is not None, 'To enable the normalization in target' \
+                                    'preprocessing, please specify both ' \
+                                    '`t_mean` and `t_std`.'
+            # Enable the normalization in preprocessing.
+            self._enable_target_normalize = True
+            self.register_buffer('t_mean',
+                                 torch.tensor(t_mean).view(-1, 1, 1), False)
+            self.register_buffer('t_std',
+                                 torch.tensor(t_std).view(-1, 1, 1), False)
+        else:
+            self._enable_target_normalize = False
+
+        # TODO: support batch augmentations.
+        self.batch_augments = batch_augments
+
+        # Support different padding methods in testing
+        self.test_cfg = test_cfg
+
+    def forward(self, data: dict, training: bool = False) -> Dict[str, Any]:
+        """Perform normalization、padding and bgr2rgb conversion based on
+        ``BaseDataPreprocessor``.
+
+        Args:
+            data (dict): data sampled from dataloader.
+            training (bool): Whether to enable training time augmentation.
+
+        Returns:
+            Dict: Data in the same format as the model input.
+        """
+        data = self.cast_data(data)  # type: ignore
+        inputs = data['inputs']
+        data_samples = data.get('data_samples', None)
+        targets = data.get('targets',None)
+        # TODO: whether normalize should be after stack_batch
+        if self.channel_conversion and inputs[0].size(0) == 3:
+            inputs = [_input[[2, 1, 0], ...] for _input in inputs]
+            if targets is not None:
+                targets = [_target[[2, 1, 0], ...] for _target in targets]
+
+        inputs = [_input.float() for _input in inputs]
+        if targets is not None:
+            targets = [_target.float() for _target in targets]
+
+        if self._enable_normalize:
+            inputs = [(_input - self.mean) / self.std for _input in inputs]
+        if self._enable_target_normalize and targets is not None:
+            targets = [(_target - self.t_mean) / self.t_std for _target in targets]
+
+        if training:
+            assert data_samples is not None, ('During training, ',
+                                              '`data_samples` must be define.')
+            assert targets is not None, ('During training, ',
+                                              '`targets` must be define.')
+            inputs, data_samples, targets = dual_stack_batch(
+                inputs=inputs,
+                data_samples=data_samples,
+                targets=targets,
+                size=self.size,
+                size_divisor=self.size_divisor,
+                pad_val=self.pad_val,
+                seg_pad_val=self.seg_pad_val)
+
+            if self.batch_augments is not None:
+                inputs, data_samples = self.batch_augments(
+                    inputs, data_samples)
+        else:
+            img_size = inputs[0].shape[1:]
+            assert all(input_.shape[1:] == img_size for input_ in inputs),  \
+                'The image size in a batch should be the same.'
+            # assert all(target_.shape[1:] == img_size for target_ in targets), \
+            #     'Target images should have the same size as input images'
+            # # pad images when testing
+            if self.test_cfg:
+                inputs, padded_samples = stack_batch(
+                    inputs=inputs,
+                    size=self.test_cfg.get('size', None),
+                    size_divisor=self.test_cfg.get('size_divisor', None),
+                    pad_val=self.pad_val,
+                    seg_pad_val=self.seg_pad_val)
+                for data_sample, pad_info in zip(data_samples, padded_samples):
+                    data_sample.set_metainfo({**pad_info})
+            else:
+                inputs = torch.stack(inputs, dim=0)
+
+        return dict(inputs=inputs, data_samples=data_samples, targets=targets)
