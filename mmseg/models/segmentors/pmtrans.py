@@ -319,27 +319,37 @@ class PMTrans(BaseSegmentor):
 
             # preds = F.interpolate(pred[b].unsqueeze(0),label.shape[-2:],mode='bilinear',align_corners=True).squeeze(0)
             # print(pred.shape,pred_labels.shape)
-            loss_ = torch.nn.CrossEntropyLoss(reduction='none',weight=weight,ignore_index=255)(pred, pred_labels)
-        
+            loss = torch.nn.CrossEntropyLoss(reduction='none',weight=weight,ignore_index=255)(pred, pred_labels)
+            
+            # print('Supervised',loss.shape)
+            
+            loss = torch.sum(torch.mul(loss, lam))
+
         else:
 
             # print('tensors',pred,labels)
 
-            pred = F.interpolate(pred,lam.shape[-2:],mode='bilinear',align_corners=True)
+            # pred = F.interpolate(pred,lam.shape[-2:],mode='bilinear',align_corners=True)
 
             # print(labels.shape)
 
-            labels = F.interpolate(labels,lam.shape[-2:],mode='bilinear',align_corners=True)
+            # labels = F.interpolate(labels,lam.shape[-2:],mode='bilinear',align_corners=True)
 
-            labels = nn.Softmax(dim=1)(labels)
+            lam = nn.AdaptiveAvgPool2d(pred.shape[-2:])(lam)
+
+            # print('shapes:',pred.shape,labels.shape,lam.shape)
 
             # print("label dimensions",labels)
 
-            loss_ = torch.nn.CrossEntropyLoss(reduction='none',weight=weight)(pred,labels)
+            loss = torch.nn.CrossEntropyLoss(reduction='none',weight=weight)(pred,labels)
+
+            # print('Unsupervised',loss.shape)
+
+            loss = torch.sum(torch.mul(loss, lam))
 
             # print('loss',loss_.shape,loss_)
 
-        loss = torch.sum(torch.mul(loss_, lam))
+        
         # loss = loss*torch.sum(lam,dim=0)
         return loss
     
@@ -458,6 +468,10 @@ class PMTrans(BaseSegmentor):
         # print("Logits done calculating")
 
         pred = self.decode_head.forward(t_logits) # B C H W
+
+        pred = nn.Softmax(dim=1)(pred)
+
+        pred = torch.argmax(pred,dim=1)
 
         # print("Target predictions done")
 
