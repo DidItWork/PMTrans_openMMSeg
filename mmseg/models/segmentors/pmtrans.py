@@ -16,7 +16,7 @@ from .base import BaseSegmentor
 
 import os
 
-os.environ['CUDA_LAUNCH_BLOCKING']='1'
+# os.environ['CUDA_LAUNCH_BLOCKING']='1'
 
 
 @MODELS.register_module()
@@ -308,7 +308,7 @@ class PMTrans(BaseSegmentor):
 
         return mixup_losses/len(preds) #N H x W
     
-    def mixup_soft_ce(self, pred, labels, weight, lam, ignored):
+    def mixup_soft_ce(self, pred, labels, weight, lam):
 
         # loss = torch.tensor(0.,requires_grad=True).cuda()
 
@@ -327,6 +327,16 @@ class PMTrans(BaseSegmentor):
             # print(pred.shape,pred_labels.shape)
             loss = torch.nn.CrossEntropyLoss(reduction='none',weight=weight,ignore_index=255)(pred, pred_labels)
             
+            count = torch.unique(pred_labels,return_counts=True)
+
+            if count[0][-1]==255:
+
+                count[0][-1] = 0
+
+                count[1][-1] = 0
+
+            count = torch.mm(weight[count[0]].unsqueeze(0),count[1].unsqueeze(-1).float()).item()
+            
             # print(torch.numel(loss)-ignored)
             # print(loss/(torch.numel(pred_labels)-ignored))
 
@@ -334,7 +344,7 @@ class PMTrans(BaseSegmentor):
 
             # print('Supervised',loss)
             
-            loss = torch.sum(torch.mul(loss, lam))
+            loss = torch.sum(torch.mul(loss, lam))/count
 
         else:
 
@@ -356,6 +366,16 @@ class PMTrans(BaseSegmentor):
 
             loss = torch.nn.CrossEntropyLoss(reduction='none',weight=weight,ignore_index=255)(pred,labels)
 
+            count = torch.unique(labels,return_counts=True)
+
+            if count[0][-1]==255:
+
+                count[0][-1] = 0
+
+                count[1][-1] = 0
+            
+            count = torch.mm(weight[count[0]].unsqueeze(0),count[1].unsqueeze(-1).float()).item()
+
             # print('Unsupervised',loss.shape)
 
             # print('Unsupervised',loss)
@@ -363,7 +383,7 @@ class PMTrans(BaseSegmentor):
             # print(torch.numel(loss)-ignored)
             # print(loss/(torch.numel(labels)-ignored))
 
-            loss = torch.sum(torch.mul(loss, lam))
+            loss = torch.sum(torch.mul(loss, lam))/count
 
             # print('loss',loss_.shape,loss_)
 
@@ -377,8 +397,7 @@ class PMTrans(BaseSegmentor):
     def mix_source_target(self, s_token, t_token, s_lambda, t_lambda,
                           pred, infer_label, s_logits, t_logits,
                           s_scores, t_scores, weight_tgt, weight_src,
-                          source_masks, target_masks, sources_ignored,
-                          targets_ignored):
+                          source_masks, target_masks):
 
         # print("Mixing tokens")
         m_s_t_token = self.mix_token(s_token, t_token, s_lambda)
@@ -460,12 +479,12 @@ class PMTrans(BaseSegmentor):
         t_lam = 1 - s_lam
 
         # print("Mixup soft CE")
-        super_m_s_t_s_loss = self.mixup_soft_ce(m_s_t_pred, infer_label, weight_src, s_lam, sources_ignored)
-        unsuper_m_s_t_loss = self.mixup_soft_ce(m_s_t_pred, pred, weight_tgt, t_lam, targets_ignored)
+        super_m_s_t_s_loss = self.mixup_soft_ce(m_s_t_pred, infer_label, weight_src, s_lam)
+        unsuper_m_s_t_loss = self.mixup_soft_ce(m_s_t_pred, pred, weight_tgt, t_lam)
 
         # print("labels losses", self.softplus(self.unsuper_ratio),super_m_s_t_s_loss, unsuper_m_s_t_loss, torch.numel(s_lam))
 
-        label_space_loss = self.softplus(self.unsuper_ratio)*(super_m_s_t_s_loss + unsuper_m_s_t_loss)/torch.numel(s_lam)
+        label_space_loss = self.softplus(self.unsuper_ratio)*(super_m_s_t_s_loss + unsuper_m_s_t_loss)
 
         #Losses
 
@@ -515,17 +534,17 @@ class PMTrans(BaseSegmentor):
         source_masks = []
         target_masks = []
 
-        targets_ignored = 0
-        sources_ignored = 0
+        # targets_ignored = 0
+        # sources_ignored = 0
 
         for i in range(len(targets_padding)):
             s_mask = torch.zeros(hw,dtype=torch.bool).cuda()
             t_mask = torch.zeros(hw,dtype=torch.bool).cuda()
             t_mask[:hw[0]-targets_padding[i][-1],:hw[1]-targets_padding[i][1]] = 1
-            targets_ignored += targets_padding[i][-1]*hw[1]+targets_padding[i][1]*(hw[0]-targets_padding[i][-1])
+            # targets_ignored += targets_padding[i][-1]*hw[1]+targets_padding[i][1]*(hw[0]-targets_padding[i][-1])
             source_padding = data_samples[i].metainfo['padding_size']
             s_mask[:hw[0]-source_padding[-1],:hw[1]-source_padding[1]] = 1
-            sources_ignored += source_padding[-1]*hw[1]+source_padding[1]*(hw[0]-source_padding[-1])
+            # sources_ignored += source_padding[-1]*hw[1]+source_padding[1]*(hw[0]-source_padding[-1])
             target_masks.append(t_mask)
             source_masks.append(s_mask)
         
@@ -600,8 +619,7 @@ class PMTrans(BaseSegmentor):
                                                                       pred_masked,data_samples,s_logits,
                                                                       t_logits,s_attn,t_attn,
                                                                       weight_tgt,weight_src,source_masks,
-                                                                      target_masks, sources_ignored,
-                                                                      targets_ignored)
+                                                                      target_masks)
         
         losses.update(super_m_s_t_loss)
         losses.update(unsuper_m_s_t_loss)
