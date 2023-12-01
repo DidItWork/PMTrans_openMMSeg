@@ -27,6 +27,7 @@ from .stare import STAREDataset
 from .synapse import SynapseDataset
 from .synthia import SynthiaDataset
 from .syn2city import Syn2CityDataset
+from .gtav import GTAVDataset
 
 # yapf: disable
 from .transforms import (CLAHE, AdjustGamma, Albu, BioMedical3DPad,
@@ -63,5 +64,5 @@ __all__ = [
     'MapillaryDataset_v2', 'Albu', 'LEVIRCDDataset',
     'LoadMultipleRSImageFromFile', 'LoadSingleRSImageFromFile',
     'ConcatCDInput', 'BaseCDDataset', 'DSDLSegDataset', 'BDD100KDataset',
-    'NYUDataset', 'SynthiaDataset', 'Syn2CityDataset'
+    'NYUDataset', 'SynthiaDataset', 'Syn2CityDataset', 'GTAVDataset'
 ]

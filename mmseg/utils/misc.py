@@ -171,6 +171,7 @@ def dual_stack_batch(inputs: List[torch.Tensor],
     padded_inputs = []
     padded_targets = []
     padded_samples = []
+    target_padding = []
     inputs_sizes = [(img.shape[-2], img.shape[-1]) for img in inputs]
     target_sizes = [(target.shape[-2],target.shape[-1]) for target in targets]
     max_size = np.stack(inputs_sizes).max(0)
@@ -211,6 +212,7 @@ def dual_stack_batch(inputs: List[torch.Tensor],
         pad_target = F.pad(t_tensor, t_padding_size, value=pad_val)
         padded_inputs.append(pad_img)
         padded_targets.append(pad_target)
+        target_padding.append(t_padding_size)
         # pad gt_sem_seg
         if data_samples is not None:
             data_sample = data_samples[i]
@@ -245,4 +247,4 @@ def dual_stack_batch(inputs: List[torch.Tensor],
                     img_padding_size=padding_size,
                     pad_shape=pad_img.shape[-2:]))
 
-    return torch.stack(padded_inputs, dim=0), padded_samples, torch.stack(padded_targets, dim=0)
+    return torch.stack(padded_inputs, dim=0), padded_samples, torch.stack(padded_targets, dim=0), target_padding

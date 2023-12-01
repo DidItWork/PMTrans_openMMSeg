@@ -245,7 +245,7 @@ class PMSegDataPreProcessor(BaseDataPreprocessor):
                                               '`data_samples` must be define.')
             assert targets is not None, ('During training, ',
                                               '`targets` must be define.')
-            inputs, data_samples, targets = dual_stack_batch(
+            inputs, data_samples, targets, targets_padding = dual_stack_batch(
                 inputs=inputs,
                 data_samples=data_samples,
                 targets=targets,
@@ -258,6 +258,9 @@ class PMSegDataPreProcessor(BaseDataPreprocessor):
                 inputs, data_samples = self.batch_augments(
                     inputs, data_samples)
         else:
+            
+            targets_padding = None
+
             img_size = inputs[0].shape[1:]
             assert all(input_.shape[1:] == img_size for input_ in inputs),  \
                 'The image size in a batch should be the same.'
@@ -276,4 +279,4 @@ class PMSegDataPreProcessor(BaseDataPreprocessor):
             else:
                 inputs = torch.stack(inputs, dim=0)
 
-        return dict(inputs=inputs, data_samples=data_samples, targets=targets)
+        return dict(inputs=inputs, data_samples=data_samples, targets=targets, targets_padding=targets_padding)
