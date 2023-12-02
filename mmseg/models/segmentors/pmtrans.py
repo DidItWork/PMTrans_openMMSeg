@@ -274,12 +274,14 @@ class PMTrans(BaseSegmentor):
         
         slabel = torch.einsum('ACHW,BCHW->ABHW',s_label_tensor,s_label_tensor)
 
+        # print(slabel)
+
         for p in range(len(preds)):
             label = nn.AdaptiveAvgPool2d(preds[p].shape[-2:])(slabel)
             mixup_loss = -torch.sum(label*F.log_softmax(preds[p],dim=1),dim=1)
-            mixup_loss = torch.sum(torch.mul(torch.sum(mixup_loss,dim=0),lam[p]))
-            mixup_losses += mixup_loss/torch.numel(lam[p])
-            # print('Supervised',mixup_losses)
+            mixup_losses += torch.mean(torch.mul(torch.sum(mixup_loss,dim=0),lam[p]))
+        
+        # print('Supervised',mixup_losses)
         
         return mixup_losses/len(preds) #N H x W
 
@@ -302,9 +304,9 @@ class PMTrans(BaseSegmentor):
             label = torch.einsum('ij,ij...->ij...',label, ones)
             mixup_loss = -torch.sum(label*F.log_softmax(preds[p],dim=1),dim=1)
             # print('a',preds[p].shape,F.log_softmax(preds[p],dim=1))
-            mixup_loss = torch.sum(torch.mul(torch.sum(mixup_loss,dim=0),lam[p]))
-            mixup_losses += mixup_loss/torch.numel(lam[p])
-            # print('Unsupervised',mixup_losses)
+            mixup_losses += torch.mean(torch.mul(torch.sum(mixup_loss,dim=0),lam[p]))
+        
+        # print('Unsupervised',mixup_losses)
 
         return mixup_losses/len(preds) #N H x W
     
@@ -321,8 +323,6 @@ class PMTrans(BaseSegmentor):
             
             pred_labels = torch.stack(pred_labels)
 
-            pred = F.interpolate(pred,pred_labels.shape[-2:],mode='bilinear',align_corners=True)
-
             # preds = F.interpolate(pred[b].unsqueeze(0),label.shape[-2:],mode='bilinear',align_corners=True).squeeze(0)
             # print(pred.shape,pred_labels.shape)
             loss = torch.nn.CrossEntropyLoss(reduction='none',weight=weight,ignore_index=255)(pred, pred_labels)
@@ -336,6 +336,8 @@ class PMTrans(BaseSegmentor):
                 count[1][-1] = 0
 
             count = torch.mm(weight[count[0]].unsqueeze(0),count[1].unsqueeze(-1).float()).item()
+
+            
             
             # print(torch.numel(loss)-ignored)
             # print(loss/(torch.numel(pred_labels)-ignored))
@@ -343,14 +345,12 @@ class PMTrans(BaseSegmentor):
             # print('Supervised',loss.shape)
 
             # print('Supervised',loss)
-            
-            loss = torch.sum(torch.mul(loss, lam))/count
 
         else:
 
             # print('tensors',pred,labels)
 
-            pred = F.interpolate(pred,lam.shape[-2:],mode='bilinear',align_corners=True)
+            # pred = F.interpolate(pred,lam.shape[-2:],mode='bilinear',align_corners=True)
 
             # print(labels.shape)
 
@@ -364,7 +364,7 @@ class PMTrans(BaseSegmentor):
 
             # print("label dimensions",labels)
 
-            loss = torch.nn.CrossEntropyLoss(reduction='none',weight=weight,ignore_index=255)(pred,labels)
+            loss = torch.nn.CrossEntropyLoss(reduction='none',weight=weight,ignore_index=255)(pred, labels)
 
             count = torch.unique(labels,return_counts=True)
 
@@ -383,9 +383,9 @@ class PMTrans(BaseSegmentor):
             # print(torch.numel(loss)-ignored)
             # print(loss/(torch.numel(labels)-ignored))
 
-            loss = torch.sum(torch.mul(loss, lam))/count
+        loss = torch.sum(torch.mul(loss, lam))/count
 
-            # print('loss',loss_.shape,loss_)
+        # print('loss',loss_.shape,loss_)
 
         
         # loss = loss*torch.sum(lam,dim=0)
@@ -395,9 +395,11 @@ class PMTrans(BaseSegmentor):
         return loss
     
     def mix_source_target(self, s_token, t_token, s_lambda, t_lambda,
-                          pred, infer_label, s_logits, t_logits,
+                          target_label, infer_label, s_logits, t_logits,
                           s_scores, t_scores, weight_tgt, weight_src,
                           source_masks, target_masks):
+        # print(infer_label[0])
+        # print(target_label[0])
 
         # print("Mixing tokens")
         m_s_t_token = self.mix_token(s_token, t_token, s_lambda)
@@ -408,6 +410,10 @@ class PMTrans(BaseSegmentor):
         # print("Generating intermediate domain predictions")
         m_s_t_pred = self.decode_head.forward(m_s_t_logits)
 
+        m_s_t_pred = F.interpolate(m_s_t_pred,infer_label[0].gt_sem_seg.data.shape[-2:],mode='bilinear',align_corners=True)
+
+        m_s_t_pred = nn.Softmax(dim=1)(m_s_t_pred)
+
         for i in range(len(m_s_t_logits)):
 
             scale = int(target_masks.shape[-1]/m_s_t_logits[i].shape[-1])
@@ -415,9 +421,11 @@ class PMTrans(BaseSegmentor):
             h_indexes = scale*torch.arange(target_masks.shape[-1]//scale,dtype=torch.int).cuda()
             v_indexes = scale*torch.arange(target_masks.shape[-2]//scale,dtype=torch.int).cuda()
 
-            mask = torch.logical_and(source_masks,target_masks).cuda()
+            mask = torch.logical_or(source_masks,target_masks).cuda()
 
             mask = torch.index_select(torch.index_select(mask,2,h_indexes),1,v_indexes)
+
+            # print(mask, mask.shape)
 
             m_s_t_logits[i] = torch.mul(m_s_t_logits[i],mask.unsqueeze(1))
 
@@ -442,10 +450,6 @@ class PMTrans(BaseSegmentor):
         # print("Cosine Distance")
         m_s_t_s = self.cosine_distance(m_s_t_logits,s_logits)
 
-        # print(m_s_t_s[0].shape)
-
-        # print('Cosine distance',m_s_t_s)
-
         m_s_t_s_similarity = self.mixup_supervised_dis(m_s_t_s, infer_label ,s_lambda)
 
         m_s_t_t = self.cosine_distance(m_s_t_logits,t_logits)
@@ -454,16 +458,7 @@ class PMTrans(BaseSegmentor):
 
         #resizing and concatenating feature_space_loss across layers to be same size as segmentation map
 
-        # size = torch.numel(s_lambda)
-
         feature_space_loss = self.softplus(self.super_ratio)*(m_s_t_s_similarity + m_s_t_t_similarity)
-        # feature_space_loss = self.softplus(self.super_ratio)*(m_s_t_s_similarity)
-        # torch.zeros(size=infer_label.shape[2:])
-
-        # for l in range(len(m_s_t_t_similarity)):
-        #     size = torch.numel(s_lambda[l])
-        #     f_s_l = ()
-        #     feature_space_loss += F.interpolate(f_s_l.unsqueeze(0),size=infer_label.shape[2:]).squeeze(0)
 
         #resizing and concatenating lambda to be same size as segmentation map
 
@@ -480,7 +475,7 @@ class PMTrans(BaseSegmentor):
 
         # print("Mixup soft CE")
         super_m_s_t_s_loss = self.mixup_soft_ce(m_s_t_pred, infer_label, weight_src, s_lam)
-        unsuper_m_s_t_loss = self.mixup_soft_ce(m_s_t_pred, pred, weight_tgt, t_lam)
+        unsuper_m_s_t_loss = self.mixup_soft_ce(m_s_t_pred, target_label, weight_tgt, t_lam)
 
         # print("labels losses", self.softplus(self.unsuper_ratio),super_m_s_t_s_loss, unsuper_m_s_t_loss, torch.numel(s_lam))
 
@@ -488,15 +483,20 @@ class PMTrans(BaseSegmentor):
 
         #Losses
 
+        f_loss_dict = dict()
+        l_loss_dict = dict()
+
         f_losses = dict(loss_pm=feature_space_loss)
         l_losses = dict(loss_pm=label_space_loss)
+        # l_losses = dict()
+        # f_losses = dict()
 
-        f_losses.update(add_prefix(f_losses, 'feature'))
-        l_losses.update(add_prefix(l_losses, 'label'))
+        f_loss_dict.update(add_prefix(f_losses, 'feature'))
+        l_loss_dict.update(add_prefix(l_losses, 'label'))
 
-        return f_losses, l_losses
+        return f_loss_dict, l_loss_dict
 
-    def loss(self, inputs: Tensor, data_samples: SampleList, targets: Tensor, targets_padding: List) -> dict:
+    def loss(self, inputs: Tensor, data_samples: SampleList, targets: Tensor, target_data_samples: SampleList) -> dict:
         """Calculate losses from a batch of target and data samples.
 
         Args:
@@ -529,21 +529,21 @@ class PMTrans(BaseSegmentor):
 
         # print(targets_padding)
 
-        hw = inputs.shape[-2:]
-
         source_masks = []
         target_masks = []
 
         # targets_ignored = 0
         # sources_ignored = 0
 
-        for i in range(len(targets_padding)):
-            s_mask = torch.zeros(hw,dtype=torch.bool).cuda()
-            t_mask = torch.zeros(hw,dtype=torch.bool).cuda()
-            t_mask[:hw[0]-targets_padding[i][-1],:hw[1]-targets_padding[i][1]] = 1
+        for i in range(len(inputs)):
+            s_mask = torch.zeros(inputs.shape[-2:],dtype=torch.bool).cuda()
+            t_mask = torch.zeros(targets.shape[-2:],dtype=torch.bool).cuda()
+            # t_mask[:hw[0]-targets_padding[i][-1],:hw[1]-targets_padding[i][1]] = 1
             # targets_ignored += targets_padding[i][-1]*hw[1]+targets_padding[i][1]*(hw[0]-targets_padding[i][-1])
             source_padding = data_samples[i].metainfo['padding_size']
-            s_mask[:hw[0]-source_padding[-1],:hw[1]-source_padding[1]] = 1
+            target_padding = target_data_samples[i].metainfo['padding_size']
+            s_mask[:inputs.shape[-2:][0]-source_padding[-1],:inputs.shape[-2:][1]-source_padding[1]] = 1
+            t_mask[:targets.shape[-2:][0]-target_padding[-1],:targets.shape[-2:][1]-target_padding[1]] = 1
             # sources_ignored += source_padding[-1]*hw[1]+source_padding[1]*(hw[0]-source_padding[-1])
             target_masks.append(t_mask)
             source_masks.append(s_mask)
@@ -559,17 +559,17 @@ class PMTrans(BaseSegmentor):
         
         # print("Logits done calculating")
 
-        pred = self.decode_head.forward(t_logits) # B C H W
+        # pred = self.decode_head.forward(t_logits) # B C H W
 
-        pred = F.interpolate(pred,hw,mode='bilinear',align_corners=True)
+        # pred = F.interpolate(pred,hw,mode='bilinear',align_corners=True)
 
-        pred = nn.Softmax(dim=1)(pred)
+        # pred = nn.Softmax(dim=1)(pred)
 
-        pred = torch.argmax(pred,dim=1)
+        # pred = torch.argmax(pred,dim=1)
 
         #segmentation for padded areas are ignored
 
-        pred_masked = torch.mul(pred,target_masks) + 255*torch.logical_not(target_masks)
+        # pred_masked = torch.mul(pred,target_masks) + 255*torch.logical_not(target_masks)
 
         # print(pred_masked)
         # print(pred_masked.shape)
@@ -616,7 +616,7 @@ class PMTrans(BaseSegmentor):
         # print(self.s_dist_alpha, self.s_dist_beta, self.super_ratio, self.unsuper_ratio)
 
         super_m_s_t_loss, unsuper_m_s_t_loss = self.mix_source_target(s_p,t_p,s_lambda,t_lambda,
-                                                                      pred_masked,data_samples,s_logits,
+                                                                      target_data_samples,data_samples,s_logits,
                                                                       t_logits,s_attn,t_attn,
                                                                       weight_tgt,weight_src,source_masks,
                                                                       target_masks)
@@ -675,7 +675,7 @@ class PMTrans(BaseSegmentor):
                 data_samples: OptSampleList = None,
                 mode: str = 'tensor',
                 targets:Tensor = None,
-                targets_padding:List = None) -> ForwardResults:
+                target_data_samples:OptSampleList = None) -> ForwardResults:
 
         """
         Args:
@@ -694,7 +694,7 @@ class PMTrans(BaseSegmentor):
             - If ``mode="loss"``, return a dict of tensor.
         """
         if mode == 'loss':
-            return self.loss(inputs, data_samples, targets, targets_padding)
+            return self.loss(inputs, data_samples, targets, target_data_samples)
         elif mode == 'predict':
             return self.predict(inputs, data_samples)
         elif mode == 'tensor':

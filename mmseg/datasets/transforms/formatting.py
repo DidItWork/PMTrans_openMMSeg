@@ -145,8 +145,12 @@ class PackSegInputsTargets(BaseTransform):
     def __init__(self,
                  meta_keys=('img_path', 'seg_map_path', 'ori_shape',
                             'img_shape', 'pad_shape', 'scale_factor', 'flip',
-                            'flip_direction', 'reduce_zero_label')):
+                            'flip_direction', 'reduce_zero_label'),
+                 t_meta_keys=('target_path', 'target_seg_map_path', 'target_ori_shape',
+                            'target_shape', 'target_pad_shape', 'target_scale_factor', 'target_flip',
+                            'target_flip_direction', 'target_reduce_zero_label')):
         self.meta_keys = meta_keys
+        self.t_meta_keys = t_meta_keys
 
     def transform(self, results: dict) -> dict:
         """Method to pack the input data.
@@ -172,17 +176,6 @@ class PackSegInputsTargets(BaseTransform):
                 img = img.transpose(2, 0, 1)
                 img = to_tensor(img).contiguous()
             packed_results['inputs'] = img
-        
-        if 'targets' in results:
-            img = results['targets']
-            if len(img.shape) < 3:
-                img = np.expand_dims(img, -1)
-            if not img.flags.c_contiguous:
-                img = to_tensor(np.ascontiguousarray(img.transpose(2, 0, 1)))
-            else:
-                img = img.transpose(2, 0, 1)
-                img = to_tensor(img).contiguous()
-            packed_results['targets'] = img
 
         data_sample = SegDataSample()
         if 'gt_seg_map' in results:
@@ -216,10 +209,56 @@ class PackSegInputsTargets(BaseTransform):
         data_sample.set_metainfo(img_meta)
         packed_results['data_samples'] = data_sample
 
+        #Targets
+
+        if 'target_img' in results:
+            img = results['target_img']
+            if len(img.shape) < 3:
+                img = np.expand_dims(img, -1)
+            if not img.flags.c_contiguous:
+                img = to_tensor(np.ascontiguousarray(img.transpose(2, 0, 1)))
+            else:
+                img = img.transpose(2, 0, 1)
+                img = to_tensor(img).contiguous()
+            packed_results['targets'] = img
+
+        target_data_sample = SegDataSample()
+        if 'target_gt_seg_map' in results:
+            if len(results['target_gt_seg_map'].shape) == 2:
+                data = to_tensor(results['target_gt_seg_map'][None,
+                                                       ...].astype(np.int64))
+            else:
+                warnings.warn('Please pay attention your ground truth '
+                              'segmentation map, usually the segmentation '
+                              'map is 2D, but got '
+                              f'{results["target_gt_seg_map"].shape}')
+                data = to_tensor(results['target_gt_seg_map'].astype(np.int64))
+            gt_sem_seg_data = dict(data=data)
+            target_data_sample.gt_sem_seg = PixelData(**gt_sem_seg_data)
+
+        if 'target_gt_edge_map' in results:
+            gt_edge_data = dict(
+                data=to_tensor(results['target_gt_edge_map'][None,
+                                                      ...].astype(np.int64)))
+            target_data_sample.set_data(dict(gt_edge_map=PixelData(**gt_edge_data)))
+
+        if 'target_gt_depth_map' in results:
+            target_gt_depth_data = dict(
+                data=to_tensor(results['target_gt_depth_map'][None, ...]))
+            target_data_sample.set_data(dict(gt_depth_map=PixelData(**gt_depth_data)))
+
+        img_meta = {}
+        for key in self.t_meta_keys:
+            if key in results:
+                # print(key, results[key])
+                img_meta[key] = results[key]
+        # print(img_meta)
+        target_data_sample.set_metainfo(img_meta)
+        packed_results['target_data_samples'] = target_data_sample
+
         return packed_results
 
     def __repr__(self) -> str:
         repr_str = self.__class__.__name__
         repr_str += f'(meta_keys={self.meta_keys})'
         return repr_str
-

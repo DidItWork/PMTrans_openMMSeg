@@ -6,7 +6,7 @@ import torch
 from mmengine.model import BaseDataPreprocessor
 
 from mmseg.registry import MODELS
-from mmseg.utils import stack_batch, dual_stack_batch
+from mmseg.utils import stack_batch, dual_stack_batch, target_stack_batch
 
 
 @MODELS.register_module()
@@ -221,10 +221,12 @@ class PMSegDataPreProcessor(BaseDataPreprocessor):
         Returns:
             Dict: Data in the same format as the model input.
         """
+
         data = self.cast_data(data)  # type: ignore
         inputs = data['inputs']
         data_samples = data.get('data_samples', None)
         targets = data.get('targets',None)
+        target_data_samples = data.get('target_data_samples',None)
         # TODO: whether normalize should be after stack_batch
         if self.channel_conversion and inputs[0].size(0) == 3:
             inputs = [_input[[2, 1, 0], ...] for _input in inputs]
@@ -243,12 +245,21 @@ class PMSegDataPreProcessor(BaseDataPreprocessor):
         if training:
             assert data_samples is not None, ('During training, ',
                                               '`data_samples` must be define.')
+            assert target_data_samples is not None, ('During training, ',
+                                              '`target_data_samples` must be define.')
             assert targets is not None, ('During training, ',
                                               '`targets` must be define.')
-            inputs, data_samples, targets, targets_padding = dual_stack_batch(
+            inputs, data_samples = stack_batch(
                 inputs=inputs,
                 data_samples=data_samples,
-                targets=targets,
+                size=self.size,
+                size_divisor=self.size_divisor,
+                pad_val=self.pad_val,
+                seg_pad_val=self.seg_pad_val)
+            
+            targets, target_data_samples = stack_batch(
+                inputs=targets,
+                data_samples=target_data_samples,
                 size=self.size,
                 size_divisor=self.size_divisor,
                 pad_val=self.pad_val,
@@ -257,9 +268,12 @@ class PMSegDataPreProcessor(BaseDataPreprocessor):
             if self.batch_augments is not None:
                 inputs, data_samples = self.batch_augments(
                     inputs, data_samples)
+                targets, target_data_samples = self.batch_augments(
+                    targets, target_data_samples)
+                
+            return dict(inputs=inputs, data_samples=data_samples, targets=targets, target_data_samples=target_data_samples)
+        
         else:
-            
-            targets_padding = None
 
             img_size = inputs[0].shape[1:]
             assert all(input_.shape[1:] == img_size for input_ in inputs),  \
@@ -279,4 +293,4 @@ class PMSegDataPreProcessor(BaseDataPreprocessor):
             else:
                 inputs = torch.stack(inputs, dim=0)
 
-        return dict(inputs=inputs, data_samples=data_samples, targets=targets, targets_padding=targets_padding)
+        return dict(inputs=inputs, data_samples=data_samples)
