@@ -232,6 +232,8 @@ class PMTrans(BaseSegmentor):
             norm_t = torch.norm(t_logits[l],p=2,dim=1)
             norm_t = torch.maximum(norm_t,1e-6*torch.ones(norm_t.shape).cuda())
 
+            # print(norm_s.device, norm_t.device)
+
             temp_matrix[l]/=norm_t
 
             for s in range(temp_matrix[l].shape[0]):
@@ -270,6 +272,7 @@ class PMTrans(BaseSegmentor):
         
         s_label_tensor = torch.stack(s_label_tensor, dim=0)
 
+
         # print(s_label_tensor[0])
         
         slabel = torch.einsum('ACHW,BCHW->ABHW',s_label_tensor,s_label_tensor)
@@ -278,7 +281,7 @@ class PMTrans(BaseSegmentor):
 
         for p in range(len(preds)):
             label = nn.AdaptiveAvgPool2d(preds[p].shape[-2:])(slabel)
-            mixup_loss = -torch.sum(label*F.log_softmax(preds[p],dim=1),dim=1)
+            mixup_loss = -torch.mean(label*F.log_softmax(preds[p],dim=1),dim=1)
             mixup_losses += torch.mean(torch.mul(torch.sum(mixup_loss,dim=0),lam[p]))
         
         # print('Supervised',mixup_losses)
@@ -302,9 +305,11 @@ class PMTrans(BaseSegmentor):
             # print(label.shape)
             # print(ones.shape)
             label = torch.einsum('ij,ij...->ij...',label, ones)
-            mixup_loss = -torch.sum(label*F.log_softmax(preds[p],dim=1),dim=1)
+            mixup_loss = -torch.mean(label*F.log_softmax(preds[p],dim=1),dim=1)
             # print('a',preds[p].shape,F.log_softmax(preds[p],dim=1))
             mixup_losses += torch.mean(torch.mul(torch.sum(mixup_loss,dim=0),lam[p]))
+
+            print("Unsuper label", label.device)
         
         # print('Unsupervised',mixup_losses)
 
@@ -462,24 +467,24 @@ class PMTrans(BaseSegmentor):
 
         #resizing and concatenating lambda to be same size as segmentation map
 
-        length = len(s_lambda)
+        # length = len(s_lambda)
         
-        s_lam = F.interpolate(s_lambda[0].unsqueeze(0),size=infer_label[0].gt_sem_seg.data.shape[-2:]).squeeze(0)
+        # s_lam = F.interpolate(s_lambda[0].unsqueeze(0),size=infer_label[0].gt_sem_seg.data.shape[-2:]).squeeze(0)
 
-        for l in range(1,len(s_lambda)):
-            s_lam += F.interpolate(s_lambda[l].unsqueeze(0),size=infer_label[0].gt_sem_seg.data.shape[-2:]).squeeze(0)
+        # for l in range(1,len(s_lambda)):
+        #     s_lam += F.interpolate(s_lambda[l].unsqueeze(0),size=infer_label[0].gt_sem_seg.data.shape[-2:]).squeeze(0)
         
-        s_lam /= length
+        # s_lam /= length
 
-        t_lam = 1 - s_lam
+        # t_lam = 1 - s_lam
 
         # print("Mixup soft CE")
-        super_m_s_t_s_loss = self.mixup_soft_ce(m_s_t_pred, infer_label, weight_src, s_lam)
-        unsuper_m_s_t_loss = self.mixup_soft_ce(m_s_t_pred, target_label, weight_tgt, t_lam)
+        # super_m_s_t_s_loss = self.mixup_soft_ce(m_s_t_pred, infer_label, weight_src, s_lam)
+        # unsuper_m_s_t_loss = self.mixup_soft_ce(m_s_t_pred, target_label, weight_tgt, t_lam)
 
         # print("labels losses", self.softplus(self.unsuper_ratio),super_m_s_t_s_loss, unsuper_m_s_t_loss, torch.numel(s_lam))
 
-        label_space_loss = self.softplus(self.unsuper_ratio)*(super_m_s_t_s_loss + unsuper_m_s_t_loss)
+        # label_space_loss = self.softplus(self.unsuper_ratio)*(super_m_s_t_s_loss + unsuper_m_s_t_loss)
 
         #Losses
 
@@ -487,12 +492,12 @@ class PMTrans(BaseSegmentor):
         l_loss_dict = dict()
 
         f_losses = dict(loss_pm=feature_space_loss)
-        l_losses = dict(loss_pm=label_space_loss)
+        # l_losses = dict(loss_pm=label_space_loss)
         # l_losses = dict()
         # f_losses = dict()
 
         f_loss_dict.update(add_prefix(f_losses, 'feature'))
-        l_loss_dict.update(add_prefix(l_losses, 'label'))
+        # l_loss_dict.update(add_prefix(l_losses, 'label'))
 
         return f_loss_dict, l_loss_dict
 
@@ -527,7 +532,7 @@ class PMTrans(BaseSegmentor):
 
         #Create padding masks
 
-        # print(targets_padding)
+        # print(self.s_dist_alpha, self.s_dist_beta, self.super_ratio, self.unsuper_ratio)
 
         source_masks = []
         target_masks = []
