@@ -1,6 +1,6 @@
 _base_ = [
     '../_base_/models/pmtrans_mit-b0.py',
-    '../_base_/datasets/syn2city_512x512.py',
+    '../_base_/datasets/gta2city_512x512.py',
     '../_base_/default_runtime.py', '../_base_/schedules/schedule_40k.py'
 ]
 crop_size = (512, 512)

@@ -145,7 +145,7 @@ class PMTrans(BaseSegmentor):
         return seg_logits
 
     def _decode_head_forward_train(self, inputs: List[Tensor],
-                                   data_samples: SampleList) -> dict:
+                                   data_samples: SampleList, features=False) -> dict:
         """Run forward function and calculate loss for decode head in
         training."""
         losses = dict()
@@ -174,18 +174,24 @@ class PMTrans(BaseSegmentor):
 
         return losses
     
+
+
+    #-----------------------------------------------------------------------------------------
+    #-----------------------------------------------------------------------------------------
+    #-----------------------------------------------------------------------------------------
     #Mix up stuff
+    #Mix up stuff
+    #Mix up stuff
+    #-----------------------------------------------------------------------------------------
+    #-----------------------------------------------------------------------------------------
+    #-----------------------------------------------------------------------------------------
+
+
 
     def softplus(self, x):
         return torch.log(1+torch.exp(x))
     
     def mix_token(self, s_tokens, t_tokens, s_lambda):
-
-        # for s in range(len(s_tokens)):
-        #     s_tokens[s] = torch.einsum('BCHW,BHW->BCHW',s_tokens[s], s_lambda[s])
-        
-        # for t in range(len(t_tokens)):
-        #     t_tokens[t] = torch.einsum('BCHW,BHW->BCHW',t_tokens[t], 1-s_lambda[t])
 
         s_tokens = torch.einsum('BCHW,BHW -> BCHW', s_tokens, s_lambda)
         t_tokens = torch.einsum('BCHW,BHW -> BCHW', t_tokens, 1-s_lambda)
@@ -198,9 +204,6 @@ class PMTrans(BaseSegmentor):
         
         #Returns a list of lambdas according to the number of layers of attention scores
 
-        # print("Source attention", s_scores[0][0].shape, torch.sum(s_scores[0][0][0]))
-        # print("Target attention", t_scores[0][0].shape, torch.sum(t_scores[0][0][0]))
-
         s_lambdas = []
 
         s_lambda = nn.Flatten()(s_lambda)
@@ -212,32 +215,28 @@ class PMTrans(BaseSegmentor):
             s_l = nn.AdaptiveAvgPool1d(num_patch)(s_lambda)
             
             t_l = 1-s_l
-            
-            # print("shapes",s_scores[i].shape,s_lambda.shape)
 
             s_lambda = torch.einsum('BLK,BK->BL',s_scores[i], s_l)
             t_lambda = torch.einsum('BLK,BK->BL',t_scores[i], t_l)
             s_lambdas.append(s_lambda/(s_lambda+t_lambda))
+
+            # print(s_lambdas[i])
 
         return s_lambdas
 
     def cosine_distance(self,s_logits, t_logits):
         temp_matrix = []
         for l in range(len(s_logits)):
-            # temp_matrix.append(nn.CosineSimilarity(dim=1)(s_logits[l],t_logits[l]))
-            # print(temp_matrix[l].shape)
-            temp_matrix.append(torch.einsum('ACHW,BCHW->ABHW',s_logits[l], t_logits[l]))
-            norm_s = torch.norm(s_logits[l],p=2,dim=1)
-            norm_s = torch.maximum(norm_s,1e-6*torch.ones(norm_s.shape).cuda())
-            norm_t = torch.norm(t_logits[l],p=2,dim=1)
-            norm_t = torch.maximum(norm_t,1e-6*torch.ones(norm_t.shape).cuda())
 
-            # print(norm_s.device, norm_t.device)
+            s_logit = nn.Flatten()(s_logits[l].permute(1,0,2,3))
+            t_logit = nn.Flatten()(t_logits[l].permute(1,0,2,3))
+            temp_matrix.append(torch.mm(s_logit.t(),t_logit))
 
-            temp_matrix[l]/=norm_t
-
-            for s in range(temp_matrix[l].shape[0]):
-                temp_matrix[l][s]/=norm_s[s]
+            norm_s = torch.norm(s_logit,p=2,dim=0).unsqueeze(0)
+            norm_t = torch.norm(t_logit,p=2,dim=0).unsqueeze(0)
+            norm_matrix = torch.mm(norm_s.t(),norm_t)
+            norm_matrix = torch.maximum(norm_matrix,torch.ones_like(norm_matrix).cuda()*1e-6)
+            temp_matrix[l]/=norm_matrix
                 
         return temp_matrix
 
@@ -248,154 +247,79 @@ class PMTrans(BaseSegmentor):
 
         s_label_tensor = []
 
-        # print(s_label[0].metainfo,s_label[0])
-
         for label in s_label:
-            # print(F.one_hot(label.gt_sem_seg.data.squeeze()).float())
-            # padding_bot = label.metainfo['padding_size'][-1]
-            # padding_right = label.metainfo['padding_size'][1]
-            # print(padding_bot,padding_right)
-            # hw = label.gt_sem_seg.data.squeeze().shape[-2:]
-            # cropped = label.gt_sem_seg.data.squeeze()[:hw[0]-padding_bot,:hw[1]-padding_right]
-            # cropped = F.one_hot(cropped,num_classes=256)[:,:,:self.num_classes].permute(2,0,1).unsqueeze(0) #H W C to C H W
-            # print(cropped.shape,cropped)
-            # s_cropped = F.interpolate(cropped.float(), (cropped.shape[-2]+padding_bot,cropped.shape[-1]+padding_right)).squeeze(0) #scale to full size
-            # print(s_cropped)
-            # print(cropped.shape)
-            
-            # print(cropped.shape)
-            # s_label_tensor.append(s_cropped)
 
-            label_onehot = F.one_hot(label.gt_sem_seg.data.squeeze(),num_classes=256)[:,:,:self.num_classes].permute(2,0,1)
+            label_onehot = F.one_hot(label.gt_sem_seg.data.squeeze(),num_classes=256)[:,:,:self.num_classes]
 
             s_label_tensor.append(label_onehot.float())
         
-        s_label_tensor = torch.stack(s_label_tensor, dim=0)
+        s_label_tensor = torch.stack(s_label_tensor, dim=0).permute(3,0,1,2)
 
+        s_label_tensor = nn.AdaptiveAvgPool1d(preds[0].shape[-1])(nn.Flatten()(s_label_tensor))
 
-        # print(s_label_tensor[0])
-        
-        slabel = torch.einsum('ACHW,BCHW->ABHW',s_label_tensor,s_label_tensor)
-
-        # print(slabel)
+        slabel = torch.mm(s_label_tensor.t(),s_label_tensor).unsqueeze(0)
 
         for p in range(len(preds)):
+
             label = nn.AdaptiveAvgPool2d(preds[p].shape[-2:])(slabel)
-            mixup_loss = -torch.mean(label*F.log_softmax(preds[p],dim=1),dim=1)
-            mixup_losses += torch.mean(torch.mul(torch.sum(mixup_loss,dim=0),lam[p]))
+
+            lambda_ = nn.Flatten(start_dim=0)(lam[p]).unsqueeze(0)
+
+            mixup_loss = -torch.sum(label.squeeze(0)*F.log_softmax(preds[p],dim=1),dim=1).unsqueeze(0)
+
+            mixup_loss /= torch.maximum(torch.sum(label,dim=1),torch.ones_like(mixup_loss)*1e-6)
+
+            mixup_losses += torch.mm(lambda_,mixup_loss.t()).item()/lambda_.shape[-1]
         
-        # print('Supervised',mixup_losses)
+        # print('Supervised',mixup_losses/len(preds))
         
-        return mixup_losses/len(preds) #N H x W
+        return mixup_losses/len(preds)
 
 
     def mixup_unsupervised_dis(self, preds, lam):
 
         mixup_losses = torch.tensor(0.,requires_grad=True).cuda()
-
-        # print(preds[0].shape)
  
         for p in range(len(preds)):
-            # print(preds[p])
-            # print(preds[p].shape[0])
-            # ones = torch.ones_like(preds[p])
-            label = torch.eye(preds[p].shape[0]).cuda()
-            ones = torch.ones_like(preds[p])
-            # print('Devices',label.device,ones.device)
-            # print(label.shape)
-            # print(ones.shape)
-            label = torch.einsum('ij,ij...->ij...',label, ones)
-            mixup_loss = -torch.mean(label*F.log_softmax(preds[p],dim=1),dim=1)
-            # print('a',preds[p].shape,F.log_softmax(preds[p],dim=1))
-            mixup_losses += torch.mean(torch.mul(torch.sum(mixup_loss,dim=0),lam[p]))
 
-            print("Unsuper label", label.device)
+            label = torch.eye(preds[p].shape[0]).cuda()
+
+            mixup_loss = -torch.sum(label*F.log_softmax(preds[p],dim=1),dim=1).unsqueeze(0)
+
+            lambda_ = nn.Flatten(start_dim=0)(lam[p]).unsqueeze(0)
+
+            mixup_losses += torch.mm(lambda_,mixup_loss.t()).item()/lambda_.shape[-1]
         
-        # print('Unsupervised',mixup_losses)
+        # print('Unsupervised',mixup_losses/len(preds))
 
         return mixup_losses/len(preds) #N H x W
     
     def mixup_soft_ce(self, pred, labels, weight, lam):
 
-        # loss = torch.tensor(0.,requires_grad=True).cuda()
+        pred_labels = []
 
-        if type(labels)==list:
-
-            pred_labels = []
-
-            for label in labels:
-                pred_labels.append(label.gt_sem_seg.data.squeeze())
-            
-            pred_labels = torch.stack(pred_labels)
-
-            # preds = F.interpolate(pred[b].unsqueeze(0),label.shape[-2:],mode='bilinear',align_corners=True).squeeze(0)
-            # print(pred.shape,pred_labels.shape)
-            loss = torch.nn.CrossEntropyLoss(reduction='none',weight=weight,ignore_index=255)(pred, pred_labels)
-            
-            count = torch.unique(pred_labels,return_counts=True)
-
-            if count[0][-1]==255:
-
-                count[0][-1] = 0
-
-                count[1][-1] = 0
-
-            count = torch.mm(weight[count[0]].unsqueeze(0),count[1].unsqueeze(-1).float()).item()
-
-            
-            
-            # print(torch.numel(loss)-ignored)
-            # print(loss/(torch.numel(pred_labels)-ignored))
-
-            # print('Supervised',loss.shape)
-
-            # print('Supervised',loss)
-
-        else:
-
-            # print('tensors',pred,labels)
-
-            # pred = F.interpolate(pred,lam.shape[-2:],mode='bilinear',align_corners=True)
-
-            # print(labels.shape)
-
-            # labels = F.interpolate(labels.unsqueeze(1).float(),lam.shape[-2:]).squeeze(1).long()
-
-            # print(labels)
-            
-            # lam = nn.AdaptiveAvgPool2d(pred.shape[-2:])(lam)
-
-            # print('shapes:',pred.shape,labels.shape,lam.shape)
-
-            # print("label dimensions",labels)
-
-            loss = torch.nn.CrossEntropyLoss(reduction='none',weight=weight,ignore_index=255)(pred, labels)
-
-            count = torch.unique(labels,return_counts=True)
-
-            if count[0][-1]==255:
-
-                count[0][-1] = 0
-
-                count[1][-1] = 0
-            
-            count = torch.mm(weight[count[0]].unsqueeze(0),count[1].unsqueeze(-1).float()).item()
-
-            # print('Unsupervised',loss.shape)
-
-            # print('Unsupervised',loss)
-
-            # print(torch.numel(loss)-ignored)
-            # print(loss/(torch.numel(labels)-ignored))
-
-        loss = torch.sum(torch.mul(loss, lam))/count
-
-        # print('loss',loss_.shape,loss_)
-
+        for label in labels:
+            pred_labels.append(label.gt_sem_seg.data.squeeze())
         
-        # loss = loss*torch.sum(lam,dim=0)
+        pred_labels = torch.stack(pred_labels)
 
-        # print(loss)
+        loss = torch.nn.CrossEntropyLoss(reduction='none',weight=weight,ignore_index=255)(pred, pred_labels)
+        
+        # count = torch.unique(pred_labels,return_counts=True)
+
+        # if count[0][-1]==255:
+
+        #     count[0][-1] = 0
+
+        #     count[1][-1] = 0
+
+        # count = torch.mm(weight[count[0]].unsqueeze(0),count[1].unsqueeze(-1).float()).item()
+
+        weight = torch.cat((weight,torch.zeros(256-self.num_classes).cuda()),0)
+        
+        count = torch.sum(torch.mul(lam,weight[pred_labels]))
+
+        loss = torch.mean(lam)*(torch.sum(torch.mul(loss, lam))/count)
 
         return loss
     
@@ -403,14 +327,13 @@ class PMTrans(BaseSegmentor):
                           target_label, infer_label, s_logits, t_logits,
                           s_scores, t_scores, weight_tgt, weight_src,
                           source_masks, target_masks):
-        # print(infer_label[0])
-        # print(target_label[0])
-
+        
         # print("Mixing tokens")
         m_s_t_token = self.mix_token(s_token, t_token, s_lambda)
 
         # print("Forward Pass for intermediate domain")
         m_s_t_logits, m_s_t_p, _ = self.backbone.forward_features(m_s_t_token, p_in=True)
+        
 
         # print("Generating intermediate domain predictions")
         m_s_t_pred = self.decode_head.forward(m_s_t_logits)
@@ -418,6 +341,10 @@ class PMTrans(BaseSegmentor):
         m_s_t_pred = F.interpolate(m_s_t_pred,infer_label[0].gt_sem_seg.data.shape[-2:],mode='bilinear',align_corners=True)
 
         m_s_t_pred = nn.Softmax(dim=1)(m_s_t_pred)
+
+        # print("Applying paddings masks on m_s_t_logits")
+
+        # m_s_t_logits = m_s_t_logits[-1:]
 
         for i in range(len(m_s_t_logits)):
 
@@ -446,20 +373,18 @@ class PMTrans(BaseSegmentor):
             lam_shape = (s_lambda[i].shape[0],*m_s_t_logits[i].shape[-2:])
             s_lambda[i] = torch.reshape(s_lambda[i],lam_shape)
 
-            # print("Reshaped lambda",s_lambda[i])
-            # print("Reshaping lambda",s_lambda[i].shape, 'to', m_s_t_logits[i].shape[-2:])
             #Calculate t_lambda
             t_lambda.append(1-s_lambda[i])
         
 
         # print("Cosine Distance")
-        m_s_t_s = self.cosine_distance(m_s_t_logits,s_logits)
+        m_s_t_s = self.cosine_distance(m_s_t_logits[-2:],s_logits[-2:])
 
-        m_s_t_s_similarity = self.mixup_supervised_dis(m_s_t_s, infer_label ,s_lambda)
+        m_s_t_s_similarity = self.mixup_supervised_dis(m_s_t_s, infer_label[-2:] ,s_lambda[-2:])
 
-        m_s_t_t = self.cosine_distance(m_s_t_logits,t_logits)
+        m_s_t_t = self.cosine_distance(m_s_t_logits[-2:],t_logits[-2:])
 
-        m_s_t_t_similarity = self.mixup_unsupervised_dis(m_s_t_t, t_lambda)
+        m_s_t_t_similarity = self.mixup_unsupervised_dis(m_s_t_t, t_lambda[-2:])
 
         #resizing and concatenating feature_space_loss across layers to be same size as segmentation map
 
@@ -467,24 +392,22 @@ class PMTrans(BaseSegmentor):
 
         #resizing and concatenating lambda to be same size as segmentation map
 
-        # length = len(s_lambda)
+        length = len(s_lambda)
         
-        # s_lam = F.interpolate(s_lambda[0].unsqueeze(0),size=infer_label[0].gt_sem_seg.data.shape[-2:]).squeeze(0)
+        s_lam = F.interpolate(s_lambda[0].unsqueeze(0),size=infer_label[0].gt_sem_seg.data.shape[-2:]).squeeze(0)
 
-        # for l in range(1,len(s_lambda)):
-        #     s_lam += F.interpolate(s_lambda[l].unsqueeze(0),size=infer_label[0].gt_sem_seg.data.shape[-2:]).squeeze(0)
+        for l in range(1,len(s_lambda)):
+            s_lam += F.interpolate(s_lambda[l].unsqueeze(0),size=infer_label[0].gt_sem_seg.data.shape[-2:]).squeeze(0)
         
-        # s_lam /= length
+        s_lam /= length
 
-        # t_lam = 1 - s_lam
+        t_lam = 1 - s_lam
 
         # print("Mixup soft CE")
-        # super_m_s_t_s_loss = self.mixup_soft_ce(m_s_t_pred, infer_label, weight_src, s_lam)
-        # unsuper_m_s_t_loss = self.mixup_soft_ce(m_s_t_pred, target_label, weight_tgt, t_lam)
+        super_m_s_t_s_loss = self.mixup_soft_ce(m_s_t_pred, infer_label, weight_src, s_lam)
+        unsuper_m_s_t_loss = self.mixup_soft_ce(m_s_t_pred, target_label, weight_tgt, t_lam)
 
-        # print("labels losses", self.softplus(self.unsuper_ratio),super_m_s_t_s_loss, unsuper_m_s_t_loss, torch.numel(s_lam))
-
-        # label_space_loss = self.softplus(self.unsuper_ratio)*(super_m_s_t_s_loss + unsuper_m_s_t_loss)
+        label_space_loss = self.softplus(self.unsuper_ratio)*(super_m_s_t_s_loss + unsuper_m_s_t_loss)
 
         #Losses
 
@@ -492,12 +415,12 @@ class PMTrans(BaseSegmentor):
         l_loss_dict = dict()
 
         f_losses = dict(loss_pm=feature_space_loss)
-        # l_losses = dict(loss_pm=label_space_loss)
+        l_losses = dict(loss_pm=label_space_loss)
         # l_losses = dict()
         # f_losses = dict()
 
         f_loss_dict.update(add_prefix(f_losses, 'feature'))
-        # l_loss_dict.update(add_prefix(l_losses, 'label'))
+        l_loss_dict.update(add_prefix(l_losses, 'label'))
 
         return f_loss_dict, l_loss_dict
 
@@ -543,13 +466,10 @@ class PMTrans(BaseSegmentor):
         for i in range(len(inputs)):
             s_mask = torch.zeros(inputs.shape[-2:],dtype=torch.bool).cuda()
             t_mask = torch.zeros(targets.shape[-2:],dtype=torch.bool).cuda()
-            # t_mask[:hw[0]-targets_padding[i][-1],:hw[1]-targets_padding[i][1]] = 1
-            # targets_ignored += targets_padding[i][-1]*hw[1]+targets_padding[i][1]*(hw[0]-targets_padding[i][-1])
             source_padding = data_samples[i].metainfo['padding_size']
             target_padding = target_data_samples[i].metainfo['padding_size']
             s_mask[:inputs.shape[-2:][0]-source_padding[-1],:inputs.shape[-2:][1]-source_padding[1]] = 1
             t_mask[:targets.shape[-2:][0]-target_padding[-1],:targets.shape[-2:][1]-target_padding[1]] = 1
-            # sources_ignored += source_padding[-1]*hw[1]+source_padding[1]*(hw[0]-source_padding[-1])
             target_masks.append(t_mask)
             source_masks.append(s_mask)
         
@@ -562,22 +482,19 @@ class PMTrans(BaseSegmentor):
         # print("inputs shape", inputs.shape)
         s_logits, s_p, s_attn = self.backbone.forward_features(inputs)
         
-        # print("Logits done calculating")
+        loss_decode = self._decode_head_forward_train(s_logits, data_samples)
+        losses.update(loss_decode)
 
-        # pred = self.decode_head.forward(t_logits) # B C H W
+        if self.with_auxiliary_head:
+            loss_aux = self._auxiliary_head_forward_train(s_logits, data_samples)
+            losses.update(loss_aux)
 
-        # pred = F.interpolate(pred,hw,mode='bilinear',align_corners=True)
+        # t_logits = t_logits[-1:]
+        # s_logits = s_logits[-1:]
+        # t_attn = t_attn[-1:]
+        # s_attn = s_attn[-1:]
 
-        # pred = nn.Softmax(dim=1)(pred)
-
-        # pred = torch.argmax(pred,dim=1)
-
-        #segmentation for padded areas are ignored
-
-        # pred_masked = torch.mul(pred,target_masks) + 255*torch.logical_not(target_masks)
-
-        # print(pred_masked)
-        # print(pred_masked.shape)
+        # print("Applying masks to source and target logits")
 
         for i in range(len(t_logits)):
 
@@ -586,23 +503,12 @@ class PMTrans(BaseSegmentor):
             h_indexes = scale*torch.arange(target_masks.shape[-1]//scale,dtype=torch.int).cuda()
             v_indexes = scale*torch.arange(target_masks.shape[-2]//scale,dtype=torch.int).cuda()
 
-            # print(target_masks.shape)
-
             target_masks_scaled = torch.index_select(torch.index_select(target_masks,2,h_indexes),1,v_indexes).unsqueeze(1)
             source_masks_scaled = torch.index_select(torch.index_select(source_masks,2,h_indexes),1,v_indexes).unsqueeze(1)
-
-            # print("Masks")
-            # print(target_masks_scaled.shape)
-            # print(source_masks_scaled.shape)
 
             t_logits[i] = torch.mul(t_logits[i], target_masks_scaled)
 
             s_logits[i] = torch.mul(s_logits[i], source_masks_scaled)
-
-            # print(t_logits[i].shape)
-
-        # print(t_logits)
-        # print('s_logits',s_logits)
 
         # print("Target predictions done")
 
@@ -618,8 +524,6 @@ class PMTrans(BaseSegmentor):
 
         #Returns dictionaries of mixup losses
 
-        # print(self.s_dist_alpha, self.s_dist_beta, self.super_ratio, self.unsuper_ratio)
-
         super_m_s_t_loss, unsuper_m_s_t_loss = self.mix_source_target(s_p,t_p,s_lambda,t_lambda,
                                                                       target_data_samples,data_samples,s_logits,
                                                                       t_logits,s_attn,t_attn,
@@ -628,13 +532,6 @@ class PMTrans(BaseSegmentor):
         
         losses.update(super_m_s_t_loss)
         losses.update(unsuper_m_s_t_loss)
-        
-        loss_decode = self._decode_head_forward_train(s_logits, data_samples)
-        losses.update(loss_decode)
-
-        if self.with_auxiliary_head:
-            loss_aux = self._auxiliary_head_forward_train(s_logits, data_samples)
-            losses.update(loss_aux)
 
         return losses
 
