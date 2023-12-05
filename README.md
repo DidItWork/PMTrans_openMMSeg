@@ -1,4 +1,4 @@
-Download synthia.zip from onedrive and make sure both datasets are in data/
+Download [https://sutdapac-my.sharepoint.com/:u:/g/personal/benjamin_luo_mymail_sutd_edu_sg/EXzLQluN-UVFstjYHwxlrQIBTyJFVTfIJi6jn_KYgC1wZw?e=Ljzimz](synthia (2).zip) from onedrive and make sure both datasets are in data/
 
 ### Training PMTrans
 
