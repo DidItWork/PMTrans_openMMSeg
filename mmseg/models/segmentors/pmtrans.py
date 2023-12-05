@@ -257,7 +257,15 @@ class PMTrans(BaseSegmentor):
 
         s_label_tensor = nn.AdaptiveAvgPool1d(preds[0].shape[-1])(nn.Flatten()(s_label_tensor))
 
+        label_norm = torch.norm(s_label_tensor,p=2,dim=0).unsqueeze(0)
+
+        norm_matrix = torch.mm(label_norm.t(),label_norm)
+
+        norm_matrix = torch.maximum(norm_matrix, torch.ones_like(norm_matrix)*1e-6)
+
         slabel = torch.mm(s_label_tensor.t(),s_label_tensor).unsqueeze(0)
+
+        slabel/=norm_matrix
 
         for p in range(len(preds)):
 
@@ -334,7 +342,6 @@ class PMTrans(BaseSegmentor):
         # print("Forward Pass for intermediate domain")
         m_s_t_logits, m_s_t_p, _ = self.backbone.forward_features(m_s_t_token, p_in=True)
         
-
         # print("Generating intermediate domain predictions")
         m_s_t_pred = self.decode_head.forward(m_s_t_logits)
 
@@ -378,26 +385,27 @@ class PMTrans(BaseSegmentor):
         
 
         # print("Cosine Distance")
-        m_s_t_s = self.cosine_distance(m_s_t_logits[-2:],s_logits[-2:])
+        m_s_t_s = self.cosine_distance(m_s_t_logits[-1:],s_logits[-1:])
 
-        m_s_t_s_similarity = self.mixup_supervised_dis(m_s_t_s, infer_label[-2:] ,s_lambda[-2:])
+        m_s_t_s_similarity = self.mixup_supervised_dis(m_s_t_s, infer_label[-1:] ,s_lambda[-1:])
 
-        m_s_t_t = self.cosine_distance(m_s_t_logits[-2:],t_logits[-2:])
+        m_s_t_t = self.cosine_distance(m_s_t_logits[-1:],t_logits[-1:])
 
-        m_s_t_t_similarity = self.mixup_unsupervised_dis(m_s_t_t, t_lambda[-2:])
+        m_s_t_t_similarity = self.mixup_unsupervised_dis(m_s_t_t, t_lambda[-1:])
 
         #resizing and concatenating feature_space_loss across layers to be same size as segmentation map
 
-        feature_space_loss = self.softplus(self.super_ratio)*(m_s_t_s_similarity + m_s_t_t_similarity)
+        super_feature_space_loss = self.softplus(self.super_ratio)*(m_s_t_s_similarity)
+        unsuper_feature_space_loss = self.softplus(self.super_ratio)*m_s_t_t_similarity
 
         #resizing and concatenating lambda to be same size as segmentation map
 
         length = len(s_lambda)
         
-        s_lam = F.interpolate(s_lambda[0].unsqueeze(0),size=infer_label[0].gt_sem_seg.data.shape[-2:]).squeeze(0)
+        s_lam = F.interpolate(s_lambda[0].unsqueeze(0),size=infer_label[0].gt_sem_seg.data.shape[-2:],mode='bilinear',align_corners=True).squeeze(0)
 
         for l in range(1,len(s_lambda)):
-            s_lam += F.interpolate(s_lambda[l].unsqueeze(0),size=infer_label[0].gt_sem_seg.data.shape[-2:]).squeeze(0)
+            s_lam += F.interpolate(s_lambda[l].unsqueeze(0),size=infer_label[0].gt_sem_seg.data.shape[-2:],mode='bilinear',align_corners=True).squeeze(0)
         
         s_lam /= length
 
@@ -407,20 +415,23 @@ class PMTrans(BaseSegmentor):
         super_m_s_t_s_loss = self.mixup_soft_ce(m_s_t_pred, infer_label, weight_src, s_lam)
         unsuper_m_s_t_loss = self.mixup_soft_ce(m_s_t_pred, target_label, weight_tgt, t_lam)
 
-        label_space_loss = self.softplus(self.unsuper_ratio)*(super_m_s_t_s_loss + unsuper_m_s_t_loss)
+        super_label_space_loss = self.softplus(self.unsuper_ratio)*super_m_s_t_s_loss
+        unsuper_label_space_loss = self.softplus(self.unsuper_ratio)*unsuper_m_s_t_loss
 
         #Losses
 
         f_loss_dict = dict()
         l_loss_dict = dict()
 
-        f_losses = dict(loss_pm=feature_space_loss)
-        l_losses = dict(loss_pm=label_space_loss)
+        # f_losses = dict(loss_pm_feature=super_feature_space_loss, loss_pm_feature=unsuper_feature_space_loss)
+        # l_losses = dict(loss_pm_label=label_space_loss)
         # l_losses = dict()
         # f_losses = dict()
 
-        f_loss_dict.update(add_prefix(f_losses, 'feature'))
-        l_loss_dict.update(add_prefix(l_losses, 'label'))
+        f_loss_dict.update(add_prefix(dict(loss_pm_feature=super_feature_space_loss), 'super'))
+        f_loss_dict.update(add_prefix(dict(loss_pm_feature=unsuper_feature_space_loss), 'unsuper'))
+        l_loss_dict.update(add_prefix(dict(loss_ce=super_label_space_loss), 'super'))
+        l_loss_dict.update(add_prefix(dict(loss_ce=unsuper_label_space_loss), 'unsuper'))
 
         return f_loss_dict, l_loss_dict
 

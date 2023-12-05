@@ -10,10 +10,10 @@ from math import ceil
 def label(config_path=None, checkpoint_path=None, img_dir=None, out_dir=None) -> None:
 
     if config_path is None:
-        config_path = 'configs/segformer/segformer_mit-b0_8xb1-160k_cityscapes-512x512.py'
+        config_path = 'configs/segformer/segformer_mit-b5_8xb1-40k_cityscapes-512x512.py'
     
     if checkpoint_path is None:
-        checkpoint_path = 'work_dirs/segformer_mit-b0_8xb1-160k_synthia-512x512/iter_32000.pth'
+        checkpoint_path = 'work_dirs/segformer_mit-b5_8xb1-40k_synthia-512x512/iter_40000.pth'
     
     assert img_dir is not None, 'please provide directory for images to label'
 

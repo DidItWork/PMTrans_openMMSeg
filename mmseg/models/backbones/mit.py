@@ -533,6 +533,24 @@ class MixVisionTransformer_PM(MixVisionTransformer):
 
         return outs, patch, attns
     
+    # def forward(self, x):
+    #     outs = []
+
+    #     for i, layer in enumerate(self.layers):
+    #         print(f"Input shape at layer {i}:", x.shape)
+    #         x, hw_shape = layer[0](x)
+    #         print("After patch embedding,", x.shape)
+    #         for block in layer[1]:
+    #             x,attn = block(x, hw_shape)
+    #         print("After Multihead Attention", x.shape)
+    #         x = layer[2](x)
+    #         print("After N", x.shape)
+    #         x = nlc_to_nchw(x, hw_shape)
+    #         if i in self.out_indices:
+    #             outs.append(x)
+
+    #     return outs
+    
     
     # def forward(self, target, source=None):
     #     outs = []
