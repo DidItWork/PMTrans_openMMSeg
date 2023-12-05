@@ -1,4 +1,4 @@
-Download [https://sutdapac-my.sharepoint.com/:u:/g/personal/benjamin_luo_mymail_sutd_edu_sg/EXzLQluN-UVFstjYHwxlrQIBTyJFVTfIJi6jn_KYgC1wZw?e=Ljzimz](synthia (2).zip) from onedrive as well as the stock cityscapes datasets and make sure both datasets are in data/
+Download [synthia (2).zip](https://sutdapac-my.sharepoint.com/:u:/g/personal/benjamin_luo_mymail_sutd_edu_sg/EXzLQluN-UVFstjYHwxlrQIBTyJFVTfIJi6jn_KYgC1wZw?e=Ljzimz) from onedrive as well as the stock cityscapes datasets and make sure both datasets are in data/
 
 OR
 
