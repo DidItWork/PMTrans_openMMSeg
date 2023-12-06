@@ -1,5 +1,5 @@
 _base_ = './gta2city.py'
-crop_size = (512, 512)
+crop_size = (256, 256)
 train_pipeline = [
     dict(type='LoadImageFromFile'),
     dict(type='LoadAnnotations'),
