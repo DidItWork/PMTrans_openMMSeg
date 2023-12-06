@@ -45,7 +45,7 @@ class SegformerHead(BaseDecodeHead):
             kernel_size=1,
             norm_cfg=self.norm_cfg)
 
-    def forward(self, inputs):
+    def forward(self, inputs, logits = False):
         # Receive 4 stage backbone feature map: 1/4, 1/8, 1/16, 1/32
         inputs = self._transform_inputs(inputs)
         outs = []
@@ -60,6 +60,8 @@ class SegformerHead(BaseDecodeHead):
                     align_corners=self.align_corners))
 
         out = self.fusion_conv(torch.cat(outs, dim=1))
+
+        if logits : return out
 
         out = self.cls_seg(out)
 

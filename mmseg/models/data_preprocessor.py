@@ -227,6 +227,8 @@ class PMSegDataPreProcessor(BaseDataPreprocessor):
         data_samples = data.get('data_samples', None)
         targets = data.get('targets',None)
         target_data_samples = data.get('target_data_samples',None)
+
+        # print(len(data),len(inputs),len(data_samples),len(targets),len(target_data_samples))
         # TODO: whether normalize should be after stack_batch
         if self.channel_conversion and inputs[0].size(0) == 3:
             inputs = [_input[[2, 1, 0], ...] for _input in inputs]
