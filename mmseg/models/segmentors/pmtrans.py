@@ -291,7 +291,7 @@ class PMTrans(BaseSegmentor):
 
         mixup_losses = torch.tensor(0.,requires_grad=True).cuda()
 
-        # print(s_label.shape)
+        # print(preds[0].shape)
 
         # print(preds[0].shape)
 
@@ -523,13 +523,13 @@ class PMTrans(BaseSegmentor):
         t_lambda = 1-s_lambda #B H W
 
         # print("Cosine Distance")
-        m_s_t_s = self.cosine_distance(m_s_t_logits[:1],s_logits[:1])
+        m_s_t_s = self.cosine_distance(m_s_t_logits,s_logits)
 
-        # print("supervised", s_lambda, m_s_t_s, infer_label[:1])
+        # print("supervised", s_lambda, m_s_t_s, infer_label)
 
-        m_s_t_s_similarity = self.mixup_supervised_dis(m_s_t_s[:1], infer_label[:1] ,s_lambda)
+        m_s_t_s_similarity = self.mixup_supervised_dis(m_s_t_s, infer_label ,s_lambda)
 
-        m_s_t_t = self.cosine_distance(m_s_t_logits[:1],t_logits[:1])
+        m_s_t_t = self.cosine_distance(m_s_t_logits,t_logits)
 
         m_s_t_t_similarity = self.mixup_unsupervised_dis(m_s_t_t, t_lambda)
 
