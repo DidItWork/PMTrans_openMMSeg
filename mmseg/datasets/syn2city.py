@@ -41,7 +41,7 @@ class Syn2CityDataset(BaseSegDataset):
 
     def __init__(self,
                  img_suffix='.png',
-                 target_suffix='_leftImg8bit.png'
+                 target_suffix='_leftImg8bit.png',
                  seg_map_suffix='_labelTrainIds.png',
                  target_seg_map_suffix='_gtFine_labelTrainIds.png',
                  target_root = '',
