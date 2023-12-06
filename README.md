@@ -12,3 +12,8 @@ Replace b0 with desired model size (b1, b2, b3, b4, b5)
 ```python tools/test.py configs/segformer/pmtrans_mit-b0_8xb1-40k_synthia2cityscapes-256x256.py work_dirs/pmtrans_mit-b0_8xb1-40k_synthia2cityscapes-256x256/iter_[iteration].pth --show```
 
 Replace b0 with desired model size (b1, b2, b3, b4, b5)
+
+### Plotting losses
+
+
+```python tools/analysis_tools/analyze_logs.py [json log file in work dir] --keys loss decode.loss_ce super.loss_pm_feature unsuper.loss_pm_feature super.loss_ce unsuper.loss_ce --legend loss decode.loss_ce super.loss_pm_feature unsuper.loss_pm_feature super.loss_ce unsuper.loss_ce```
