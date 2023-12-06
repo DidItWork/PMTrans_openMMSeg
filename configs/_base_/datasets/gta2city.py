@@ -49,6 +49,7 @@ train_dataloader = dict(
     dataset=dict(
         type=dataset_type,
         data_root=gta_root,
+        target_root=cityscape_root,
         data_prefix=dict(
             img_path='images/', seg_map_path='labels/'),
         target_prefix=dict(
