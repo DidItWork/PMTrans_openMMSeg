@@ -1,4 +1,4 @@
-_base_ = ['./pmtrans_mit-b0_8xb1-40k_gta2cityscapes-512x512.py']
+_base_ = ['./pmtrans_mit-b0_8xb1-40k_gta2cityscapes-256x256.py']
 
 checkpoint = 'https://download.openmmlab.com/mmsegmentation/v0.5/pretrain/segformer/mit_b2_20220624-66e8bf70.pth'  # noqa
 
