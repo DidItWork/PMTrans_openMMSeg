@@ -1,5 +1,5 @@
 # dataset settings
-dataset_type = 'GTA2CityDataset'
+dataset_type = 'Syn2CityDataset'
 cityscape_type = 'CityscapesDataset'
 gta_root = 'data/gta/'
 city_root = 'data/cityscapes/'
@@ -50,9 +50,9 @@ train_dataloader = dict(
         type=dataset_type,
         data_root=gta_root,
         data_prefix=dict(
-            img_path='RGB/', seg_map_path='GT/'),
+            img_path='images/', seg_map_path='labels/'),
         target_prefix=dict(
-            img_path='images/', seg_map_path='GT/'),
+            img_path='leftImg8bit/', seg_map_path='gtFine/'),
         pipeline=train_pipeline))
 val_dataloader = dict(
     batch_size=1,
