@@ -35,7 +35,7 @@ class SynthiaDataset(BaseSegDataset):
 
     def __init__(self,
                  img_suffix='.png',
-                 seg_map_suffix='_cityscapesLabels.png',
+                 seg_map_suffix='_labelTrainIds.png',
                  **kwargs) -> None:
         super().__init__(
             img_suffix=img_suffix, seg_map_suffix=seg_map_suffix, **kwargs)
