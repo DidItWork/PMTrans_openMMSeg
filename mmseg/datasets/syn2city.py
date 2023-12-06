@@ -42,6 +42,7 @@ class Syn2CityDataset(BaseSegDataset):
     def __init__(self,
                  img_suffix='.png',
                  seg_map_suffix='_labelTrainIds.png',
+                 target_seg_map_suffix='_gtFine_labelTrainIds.png',
                  target_root = '',
                  target_prefix: dict = dict(img_path='', seg_map_path=''),
                  target_ann_file='',
@@ -109,7 +110,7 @@ class Syn2CityDataset(BaseSegDataset):
                 img_name = line.strip()
                 datainfo['target_path']=osp.join(img_dir, img_name + self.img_suffix)
                 if target_ann_dir is not None:
-                    seg_map = img_name + self.seg_map_suffix
+                    seg_map = img_name + self.target_seg_map_suffix
                     datainfo['target_seg_map_path'] = osp.join(target_ann_dir, seg_map)
                 datainfo['target_label_map'] = self.label_map
                 datainfo['target_reduce_zero_label'] = self.reduce_zero_label
@@ -126,7 +127,7 @@ class Syn2CityDataset(BaseSegDataset):
                 img = choice(target_images)
                 datainfo['target_path']=osp.join(target_dir,img)
                 if target_ann_dir is not None:
-                    seg_map = img[:-_suffix_len] + self.seg_map_suffix
+                    seg_map = img[:-_suffix_len] + self.target_seg_map_suffix
                     datainfo['target_seg_map_path'] = osp.join(target_ann_dir, seg_map)
                 datainfo['target_label_map'] = self.label_map
                 datainfo['target_reduce_zero_label'] = self.reduce_zero_label
