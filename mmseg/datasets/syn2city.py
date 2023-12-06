@@ -50,6 +50,7 @@ class Syn2CityDataset(BaseSegDataset):
         self.target_prefix = target_prefix
         self.target_ann_file = target_ann_file
         self.target_root = target_root
+        self.target_seg_map_suffix = target_seg_map_suffix
         super().__init__(
             img_suffix=img_suffix, seg_map_suffix=seg_map_suffix, **kwargs)
         
