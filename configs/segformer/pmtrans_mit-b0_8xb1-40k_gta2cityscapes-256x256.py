@@ -1,10 +1,10 @@
 _base_ = [
     '../_base_/models/pmtrans_mit-b0.py',
-    '../_base_/datasets/gta2city_512x512.py',
+    '../_base_/datasets/gta2city_256x256.py',
     '../_base_/default_runtime.py', '../_base_/schedules/schedule_40k.py'
 ]
-crop_size = (512, 512)
-stride = (384, 384)
+crop_size = (256, 256)
+stride = (192, 192)
 data_preprocessor = dict(size=crop_size)
 checkpoint = 'https://download.openmmlab.com/mmsegmentation/v0.5/pretrain/segformer/mit_b0_20220624-7e0fe6dd.pth'  # noqa
 # checkpoint = '/home/benluo/CV/mmsegmentation/work_dirs/segformer_mit-b0_8xb1-160k_synthia-512x512/iter_32000.pth'
