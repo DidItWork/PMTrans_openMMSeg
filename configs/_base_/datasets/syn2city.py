@@ -52,7 +52,7 @@ train_dataloader = dict(
         data_prefix=dict(
             img_path='RGB/', seg_map_path='GT/'),
         target_prefix=dict(
-            img_path='leftImg8bit/', seg_map_path='gtFine/'),
+            img_path='leftImg8bit/', seg_map_path='GT/'),
         pipeline=train_pipeline))
 val_dataloader = dict(
     batch_size=1,
