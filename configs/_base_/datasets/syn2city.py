@@ -49,8 +49,9 @@ train_dataloader = dict(
     dataset=dict(
         type=dataset_type,
         data_root=syn_root,
+        target_root=city_root,
         data_prefix=dict(
-            img_path='RGB/', seg_map_path='GT/'),
+            img_path='RGB/', seg_map_path='GT/LABEL'),
         target_prefix=dict(
             img_path='leftImg8bit/', seg_map_path='gtFine/'),
         pipeline=train_pipeline))
