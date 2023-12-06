@@ -41,6 +41,7 @@ class Syn2CityDataset(BaseSegDataset):
 
     def __init__(self,
                  img_suffix='.png',
+                 target_suffix='_leftImg8bit.png'
                  seg_map_suffix='_labelTrainIds.png',
                  target_seg_map_suffix='_gtFine_labelTrainIds.png',
                  target_root = '',
@@ -51,6 +52,7 @@ class Syn2CityDataset(BaseSegDataset):
         self.target_ann_file = target_ann_file
         self.target_root = target_root
         self.target_seg_map_suffix = target_seg_map_suffix
+        self.target_suffix = target_suffix
         super().__init__(
             img_suffix=img_suffix, seg_map_suffix=seg_map_suffix, **kwargs)
         
@@ -109,7 +111,7 @@ class Syn2CityDataset(BaseSegDataset):
                 self.target_ann_file, backend_args=self.backend_args)
             for datainfo,line in zip(lines,data_list):
                 img_name = line.strip()
-                datainfo['target_path']=osp.join(img_dir, img_name + self.img_suffix)
+                datainfo['target_path']=osp.join(img_dir, img_name + self.target_suffix)
                 if target_ann_dir is not None:
                     seg_map = img_name + self.target_seg_map_suffix
                     datainfo['target_seg_map_path'] = osp.join(target_ann_dir, seg_map)
@@ -117,11 +119,11 @@ class Syn2CityDataset(BaseSegDataset):
                 datainfo['target_reduce_zero_label'] = self.reduce_zero_label
                 datainfo['target_seg_fields'] = []
         else:
-            _suffix_len = len(self.img_suffix)
+            _suffix_len = len(self.target_suffix)
             target_images  = list(fileio.list_dir_or_file(
                         dir_path=target_dir,
                         list_dir=False,
-                        suffix=self.img_suffix,
+                        suffix=self.target_suffix,
                         recursive=True,
                         backend_args=self.backend_args))
             for datainfo in data_list:
