@@ -42,11 +42,13 @@ class Syn2CityDataset(BaseSegDataset):
     def __init__(self,
                  img_suffix='.png',
                  seg_map_suffix='_labelTrainIds.png',
+                 target_root = '',
                  target_prefix: dict = dict(img_path='', seg_map_path=''),
                  target_ann_file='',
                  **kwargs) -> None:
         self.target_prefix = target_prefix
         self.target_ann_file = target_ann_file
+        self.target_root = target_root
         super().__init__(
             img_suffix=img_suffix, seg_map_suffix=seg_map_suffix, **kwargs)
         
@@ -62,7 +64,7 @@ class Syn2CityDataset(BaseSegDataset):
         img_dir = self.data_prefix.get('img_path', None)
         ann_dir = self.data_prefix.get('seg_map_path', None)
         target_dir = osp.join(self.data_root, self.target_prefix.get('img_path', None))
-        target_ann_dir = osp.join(self.data_root, '_gtFine_labelTrainIds.png')
+        target_ann_dir = osp.join(self.target_root, self.target_prefix.get('seg_map_path', None))
         if not osp.isdir(self.ann_file) and self.ann_file:
             assert osp.isfile(self.ann_file), \
                 f'Failed to load `ann_file` {self.ann_file}'
