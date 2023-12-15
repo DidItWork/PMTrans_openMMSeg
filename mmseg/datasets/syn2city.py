@@ -42,11 +42,17 @@ class Syn2CityDataset(BaseSegDataset):
     def __init__(self,
                  img_suffix='.png',
                  seg_map_suffix='_cityscapesLabels.png',
+                 target_data_root='',
+                 target_suffix='_leftImg8bit.png',
+                 target_seg_map_suffix='_gtFine_cityscapesLabels.png',
                  target_prefix: dict = dict(img_path='', seg_map_path=''),
                  target_ann_file='',
                  **kwargs) -> None:
         self.target_prefix = target_prefix
         self.target_ann_file = target_ann_file
+        self.target_data_root = target_data_root
+        self.target_seg_map_suffix = target_seg_map_suffix
+        self.target_suffix = target_suffix
         super().__init__(
             img_suffix=img_suffix, seg_map_suffix=seg_map_suffix, **kwargs)
         
@@ -61,8 +67,8 @@ class Syn2CityDataset(BaseSegDataset):
         data_list = []
         img_dir = self.data_prefix.get('img_path', None)
         ann_dir = self.data_prefix.get('seg_map_path', None)
-        target_dir = osp.join(self.data_root, self.target_prefix.get('img_path', None))
-        target_ann_dir = osp.join(self.data_root, self.target_prefix.get('seg_map_path', None))
+        target_dir = osp.join(self.target_data_root, self.target_prefix.get('img_path', None))
+        target_ann_dir = osp.join(self.target_data_root, self.target_prefix.get('seg_map_path', None))
         if not osp.isdir(self.ann_file) and self.ann_file:
             assert osp.isfile(self.ann_file), \
                 f'Failed to load `ann_file` {self.ann_file}'
@@ -105,26 +111,26 @@ class Syn2CityDataset(BaseSegDataset):
                 self.target_ann_file, backend_args=self.backend_args)
             for datainfo,line in zip(lines,data_list):
                 img_name = line.strip()
-                datainfo['target_path']=osp.join(img_dir, img_name + self.img_suffix)
+                datainfo['target_path']=osp.join(img_dir, img_name + self.target_suffix)
                 if target_ann_dir is not None:
-                    seg_map = img_name + self.seg_map_suffix
+                    seg_map = img_name + self.target_seg_map_suffix
                     datainfo['target_seg_map_path'] = osp.join(target_ann_dir, seg_map)
                 datainfo['target_label_map'] = self.label_map
                 datainfo['target_reduce_zero_label'] = self.reduce_zero_label
                 datainfo['target_seg_fields'] = []
         else:
-            _suffix_len = len(self.img_suffix)
+            _suffix_len = len(self.target_suffix)
             target_images  = list(fileio.list_dir_or_file(
                         dir_path=target_dir,
                         list_dir=False,
-                        suffix=self.img_suffix,
+                        suffix=self.target_suffix,
                         recursive=True,
                         backend_args=self.backend_args))
             for datainfo in data_list:
                 img = choice(target_images)
                 datainfo['target_path']=osp.join(target_dir,img)
                 if target_ann_dir is not None:
-                    seg_map = img[:-_suffix_len] + self.seg_map_suffix
+                    seg_map = img[:-_suffix_len] + self.target_seg_map_suffix
                     datainfo['target_seg_map_path'] = osp.join(target_ann_dir, seg_map)
                 datainfo['target_label_map'] = self.label_map
                 datainfo['target_reduce_zero_label'] = self.reduce_zero_label

@@ -1,15 +1,30 @@
-Download [synthia (2).zip](https://sutdapac-my.sharepoint.com/:u:/g/personal/benjamin_luo_mymail_sutd_edu_sg/EXzLQluN-UVFstjYHwxlrQIBTyJFVTfIJi6jn_KYgC1wZw?e=Ljzimz) from onedrive as well as the stock cityscapes datasets and make sure both datasets are in data/
+Make sure the data/ folder is organized as below:
 
-OR
-
-If you have the stock SYNTHIA_RAND_CITYSCAPES dataset in data/, run the following scripts for conversion:
+```
+data
+├── gta
+│   ├── images
+│   ├── labels
+├── cityscapes
+│   ├── gtFine
+│   │   ├── test
+│   │   ├── train
+│   │   ├── val
+│   ├── leftImg8bit
+│   │   ├── test
+│   │   ├── train
+│   │   ├── val
+├── synthia
+│   ├── Depth
+│   ├── GT
+│   │   ├── COLOR
+│   │   ├── LABELS
+│   ├── RGB
+```
 
 Splitting dataset into train-test-val splits ```python tools/dataset_converters/synthia_arrange.py data/synthia/```
 
-Converting Synthia label images to the correct png format ```python tools/dataset_converters/synthia_label.py data/synthia/GT```
-
-Converting Synthia labels to cityscape ones ```python tools/dataset_converters/synthia_synthia_2_cityscape.py data/synthia/GT```
-
+Formating Synthia Images to be consistent with Cityscapes ones ```python tools/dataset_converters/synthia_label.py data/synthia/GT```
 
 
 ### Training PMTrans

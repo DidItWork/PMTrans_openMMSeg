@@ -1,6 +1,6 @@
 _base_ = [
     '../_base_/models/segformer_mit-b0.py',
-    '../_base_/datasets/gtav_512x512.py',
+    '../_base_/datasets/gta_512x512.py',
     '../_base_/default_runtime.py', '../_base_/schedules/schedule_160k.py'
 ]
 crop_size = (512, 512)

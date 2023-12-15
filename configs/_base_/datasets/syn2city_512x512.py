@@ -3,11 +3,12 @@ crop_size = (512, 512)
 train_pipeline = [
     dict(type='LoadImageFromFile'),
     dict(type='LoadAnnotations'),
-    dict(
-        type='RandomResize',
-        scale=(1280, 760),
-        ratio_range=(0.5, 2.0),
-        keep_ratio=True),
+    # dict(
+    #     type='RandomResize',
+    #     scale=(1280, 760),
+    #     ratio_range=(0.5, 2.0),
+    #     keep_ratio=True),
+    dict(type='Resize', scale=(1280, 760), keep_ratio=True),
     dict(type='RandomCrop', crop_size=crop_size, cat_max_ratio=0.75),
     dict(type='RandomFlip', prob=0.5),
     dict(type='PhotoMetricDistortion'),
@@ -35,11 +36,12 @@ train_pipeline = [
          transforms=[
             dict(type='LoadImageFromFile'),
             dict(type='LoadAnnotations'),
-            dict(
-                type='RandomResize',
-                scale=(1024, 512),
-                ratio_range=(0.5, 2.0),
-                keep_ratio=True),
+            # dict(
+            #     type='RandomResize',
+            #     scale=(1024, 512),
+            #     ratio_range=(0.5, 2.0),
+            #     keep_ratio=True),
+            dict(type='Resize', scale=(1024, 512), keep_ratio=True),
             dict(type='RandomCrop', crop_size=crop_size, cat_max_ratio=0.75),
             dict(type='RandomFlip', prob=0.5),
             dict(type='PhotoMetricDistortion'),

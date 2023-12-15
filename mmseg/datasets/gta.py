@@ -4,7 +4,7 @@ from .basesegdataset import BaseSegDataset
 
 
 @DATASETS.register_module()
-class GTAVDataset(BaseSegDataset):
+class GTADataset(BaseSegDataset):
     """Cityscapes dataset.
 
     The ``img_suffix`` is fixed to '_leftImg8bit.png' and ``seg_map_suffix`` is
@@ -24,7 +24,7 @@ class GTAVDataset(BaseSegDataset):
 
     def __init__(self,
                  img_suffix='.png',
-                 seg_map_suffix='_labelTrainIds.png',
+                 seg_map_suffix='_cityscapesLabels.png',
                  **kwargs) -> None:
         super().__init__(
             img_suffix=img_suffix, seg_map_suffix=seg_map_suffix, **kwargs)

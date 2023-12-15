@@ -1,11 +1,11 @@
-_base_ = './gtav.py'
+_base_ = './gta.py'
 crop_size = (512, 512)
 train_pipeline = [
     dict(type='LoadImageFromFile'),
     dict(type='LoadAnnotations'),
     dict(
         type='RandomResize',
-        scale=(1024, 512),
+        scale=(1914,1052),
         ratio_range=(0.5, 2.0),
         keep_ratio=True),
     dict(type='RandomCrop', crop_size=crop_size, cat_max_ratio=0.75),

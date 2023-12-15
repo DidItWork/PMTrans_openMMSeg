@@ -1,7 +1,7 @@
 # dataset settings
 dataset_type = 'Syn2CityDataset'
 cityscape_type = 'CityscapesDataset'
-gta_root = 'data/gtav/'
+gta_root = 'data/gta/'
 city_root = 'data/cityscapes/'
 crop_size = (380, 640)
 train_pipeline = [
@@ -49,10 +49,11 @@ train_dataloader = dict(
     dataset=dict(
         type=dataset_type,
         data_root=gta_root,
+        target_data_root=city_root,
         data_prefix=dict(
-            img_path='RGB/train', seg_map_path='GT/train'),
+            img_path='images/', seg_map_path='labels/'),
         target_prefix=dict(
-            img_path='images/train', seg_map_path='labels/train'),
+            img_path='leftImg8bit/train', seg_map_path='gtFine/train'),
         pipeline=train_pipeline))
 val_dataloader = dict(
     batch_size=1,

@@ -1,6 +1,6 @@
 # dataset settings
-dataset_type = 'GTAVDataset'
-data_root = 'data/gtav/'
+dataset_type = 'GTADataset'
+data_root = 'data/gta/'
 crop_size = (512, 1024)
 train_pipeline = [
     dict(type='LoadImageFromFile'),
@@ -70,7 +70,7 @@ test_dataloader = dict(
         type=dataset_type,
         data_root=data_root,
         data_prefix=dict(
-            img_path='images/test', seg_map_path='labels/val'),
+            img_path='images/test', seg_map_path='labels/test'),
         pipeline=test_pipeline))
 test_dataloader = val_dataloader
 

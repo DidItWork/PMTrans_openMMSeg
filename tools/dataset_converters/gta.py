@@ -7,10 +7,9 @@ import argparse
 import json
 import os.path as osp
 
+import mmcv
 import numpy as np
 from PIL import Image
-from mmengine.utils import (mkdir_or_exist, scandir, track_parallel_progress,
-                            track_progress)
 
 
 def convert_to_train_id(file):
@@ -91,12 +90,12 @@ def main():
     args = parse_args()
     gta_path = args.gta_path
     out_dir = args.out_dir if args.out_dir else gta_path
-    mkdir_or_exist(out_dir)
+    mmcv.mkdir_or_exist(out_dir)
 
     gt_dir = osp.join(gta_path, args.gt_dir)
 
     poly_files = []
-    for poly in scandir(
+    for poly in mmcv.scandir(
             gt_dir, suffix=tuple(f'{i}.png' for i in range(10)),
             recursive=True):
         poly_file = osp.join(gt_dir, poly)
@@ -106,59 +105,16 @@ def main():
     only_postprocessing = False
     if not only_postprocessing:
         if args.nproc > 1:
-            sample_class_stats = track_parallel_progress(
+            sample_class_stats = mmcv.track_parallel_progress(
                 convert_to_train_id, poly_files, args.nproc)
         else:
-            sample_class_stats = track_progress(convert_to_train_id,
+            sample_class_stats = mmcv.track_progress(convert_to_train_id,
                                                      poly_files)
     else:
         with open(osp.join(out_dir, 'sample_class_stats.json'), 'r') as of:
             sample_class_stats = json.load(of)
 
     save_class_stats(out_dir, sample_class_stats)
-
-    for png in scandir(gta_path, '.png', recursive=True):
-        # img_file = osp.join(img_dir, png)
-        img_files.append(png)
-    
-    print(img_files)
-
-    train_split*=len(img_files)
-
-    train_split = int(train_split)
-
-    val_split*=len(img_files)
-
-    val_split = int(val_split)
-
-    test_split=len(img_files)-train_split-val_split
-
-    print(train_split, val_split, test_split)
-
-    splits = {"train" : train_split, "val" : val_split, "test" : test_split}
-
-    start = 0
-
-         
-    for split,val in splits.items():
-        mkdir_or_exist(osp.join(gt_dir,split))
-        mkdir_or_exist(osp.join(img_dir,split))
-        # for gt_sub in gt_subs:
-        #     mkdir_or_exist(osp.join(gt_dir,split,gt_sub))
-
-        # for img_sub in img_subs:
-        #     mkdir_or_exist(osp.join(img_dir,split,img_sub))
-        
-        for i in range(start, start+val):
-            print(i)
-            move(osp.join(img_dir,img_files[i]),osp.join(img_dir,split,img_files[i]))
-            for sub_dir in gt_subs:
-                move(osp.join(gt_dir,sub_dir,img_files[i]),osp.join(gt_dir,split,img_files[i].replace('.png','_'+sub_dir+'.png')))
-
-        with open(osp.join(out_dir, f'{split}.txt'), 'w') as f:
-            f.writelines(img_files[i].replace('.png','')+ '\n' for i in range(start, start+val))
-
-        start += val
 
 
 if __name__ == '__main__':
