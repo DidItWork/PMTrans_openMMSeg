@@ -6,13 +6,7 @@ Please see [Overview](docs/en/overview.md) for the general introduction of MMSeg
 
 ## Setup Datasets
 
-Download [synthia (2).zip](https://sutdapac-my.sharepoint.com/:u:/g/personal/benjamin_luo_mymail_sutd_edu_sg/EXzLQluN-UVFstjYHwxlrQIBTyJFVTfIJi6jn_KYgC1wZw?e=Ljzimz) from onedrive as well as the stock cityscapes datasets and make sure both datasets are in data/
-
-OR
-
-If you have the stock SYNTHIA_RAND_CITYSCAPES dataset in data/, run the following scripts for conversion:
-
-Splitting Synthia dataset into train-test-val splits ```python tools/dataset_converters/synthia_arrange.py data/synthia/```
+After unzipping SYNTHIA_RAND_CITYSCAPES dataset into data/synthia, run the following scripts for conversion:
 
 Formating Synthia Images to be consistent with Cityscapes ones ```python tools/dataset_converters/synthia_2_cityscape.py data/synthia/GT```
 
@@ -23,9 +17,11 @@ DAFormer
 ├── data
 │   ├── cityscapes
 │   │   ├── leftImg8bit
+│   │   │   ├── test
 │   │   │   ├── train
 │   │   │   ├── val
 │   │   ├── gtFine
+│   │   │   ├── test
 │   │   │   ├── train
 │   │   │   ├── val
 │   ├── gta
@@ -42,7 +38,7 @@ DAFormer
 ## Training PMTrans
 
 ```bash
-python tools/train.py configs/segformer/pmtrans_mit-b0_8xb1-40k_synthia2cityscapes-256x256.py
+python tools/train.py configs/segformer/pmtrans_mit-b0_8xb1-40k_synthia2cityscapes-512x512.py
 ```
 ```
 Note: You can also replace b0 with desired model size (b1, b2, b3, b4, b5)
@@ -52,5 +48,5 @@ Note: You can also replace b0 with desired model size (b1, b2, b3, b4, b5)
 ## Testing PMTrans
 
 ```bash
-python tools/test.py configs/segformer/pmtrans_mit-b0_8xb1-40k_synthia2cityscapes-256x256.py work_dirs/pmtrans_mit-b0_8xb1-40k_synthia2cityscapes-256x256/iter_[iteration].pth --show
+python tools/test.py configs/segformer/pmtrans_mit-b0_8xb1-40k_synthia2cityscapes-512x512.py work_dirs/pmtrans_mit-b0_8xb1-40k_synthia2cityscapes-512x512/iter_[iteration].pth --show
 ```
