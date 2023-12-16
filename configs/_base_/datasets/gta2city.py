@@ -53,7 +53,7 @@ train_dataloader = dict(
         data_prefix=dict(
             img_path='images/', seg_map_path='labels/'),
         target_prefix=dict(
-            img_path='leftImg8bit/train', seg_map_path='gtFine/train'),
+            img_path='leftImg8bit/', seg_map_path='pgtFine/'),
         pipeline=train_pipeline))
 val_dataloader = dict(
     batch_size=1,
@@ -64,7 +64,7 @@ val_dataloader = dict(
         type=cityscape_type,
         data_root=city_root,
         data_prefix=dict(
-            img_path='images/val', seg_map_path='labels/val'),
+            img_path='leftImg8bit/val', seg_map_path='gtFine/val'),
         pipeline=test_pipeline))
 test_dataloader = dict(
     batch_size=1,
@@ -75,7 +75,7 @@ test_dataloader = dict(
         type=cityscape_type,
         data_root=city_root,
         data_prefix=dict(
-            img_path='images/val', seg_map_path='labels/val'),
+            img_path='leftImg8bit/val', seg_map_path='gtFine/val'),
         pipeline=test_pipeline))
 
 val_evaluator = dict(type='IoUMetric', iou_metrics=['mIoU'])

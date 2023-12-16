@@ -18,7 +18,7 @@ def label(config_path=None, checkpoint_path=None, img_dir=None, out_dir=None) ->
     assert img_dir is not None, 'please provide directory for images to label'
 
     if out_dir==None:
-        out_dir = img_dir
+        out_dir = osp.join('/'.join(img_dir.split('/')[:-1]),'pgtFine/')
 
     print("Loading model")
 

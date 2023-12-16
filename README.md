@@ -8,7 +8,15 @@ Please see [Overview](docs/en/overview.md) for the general introduction of MMSeg
 
 After unzipping SYNTHIA_RAND_CITYSCAPES dataset into data/synthia, run the following scripts for conversion:
 
-Formating Synthia Images to be consistent with Cityscapes ones ```python tools/dataset_converters/synthia_2_cityscape.py data/synthia/GT```
+Splitting Synthia Images into Train-Test-Val splits 
+```bash
+python tools/dataset_converters/synthia_arange.py data/synthia/
+```
+
+Formating Synthia Images to be consistent with Cityscapes ones 
+```bash
+python tools/dataset_converters/synthia_2_cityscape.py data/synthia/GT
+```
 
 The final folder structure should look like this:
 ```none
@@ -32,6 +40,16 @@ DAFormer
 │   │   ├── GT
 │   │   │   ├── LABELS
 ├── ...
+```
+
+## Pseudo Labelling
+
+```bash
+python target_labelling.py data/cityscapes/leftImg8bit
+```
+
+```
+By default, the script looks in work_dirs/segformer_mit-b5_8xb1-40k_synthia-512x512/iter_40000.pth for the model file.
 ```
 
 
