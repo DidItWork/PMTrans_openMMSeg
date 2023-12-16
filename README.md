@@ -38,7 +38,7 @@ DAFormer
 ## Training PMTrans
 
 ```bash
-python tools/train.py configs/segformer/pmtrans_mit-b0_8xb1-40k_synthia2cityscapes-512x512.py
+python tools/train.py configs/segformer/pmtrans_mit-b0_8xb1-40k_synthia2cityscapes-256x256.py
 ```
 ```
 Note: You can also replace b0 with desired model size (b1, b2, b3, b4, b5)
@@ -48,5 +48,11 @@ Note: You can also replace b0 with desired model size (b1, b2, b3, b4, b5)
 ## Testing PMTrans
 
 ```bash
-python tools/test.py configs/segformer/pmtrans_mit-b0_8xb1-40k_synthia2cityscapes-512x512.py work_dirs/pmtrans_mit-b0_8xb1-40k_synthia2cityscapes-512x512/iter_[iteration].pth --show
+python tools/test.py configs/segformer/pmtrans_mit-b0_8xb1-40k_synthia2cityscapes-256x256.py work_dirs/pmtrans_mit-b0_8xb1-40k_synthia2cityscapes-256x256/iter_[iteration].pth --show
 ```
+
+## File Locations
+
+- The model and training losses can be found in [pmtrans](mmseg/models/segmentors/pmtrans.py)
+- The dataset configurations can be found in [configs/\_base\_/datasets/](configs/_base_/datasets/)
+- The training configurations are found in [configs/segformer/](configs/segformer/)

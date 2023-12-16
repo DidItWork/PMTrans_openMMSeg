@@ -365,8 +365,8 @@ class PMTrans(BaseSegmentor):
 
         slabel /= norm_matrix
 
-        print("Source similiarity", slabel)
-        print('intermediate-source',F.log_softmax(preds,dim=1))
+        # print("Source similiarity", slabel)
+        # print('intermediate-source',F.log_softmax(preds,dim=1))
 
         # lambda_ = nn.Flatten(start_dim=0)(lam[p]).unsqueeze(0)
 
@@ -389,7 +389,7 @@ class PMTrans(BaseSegmentor):
         mixup_losses = torch.mean(torch.mul(lam,mixup_loss))
         # mixup_losses = torch.mean(mixup_loss)
 
-        print('Mixup loss', mixup_losses)
+        # print('Mixup loss', mixup_losses)
         
         # print('Supervised',mixup_losses/len(preds))
         
@@ -907,13 +907,13 @@ class PMTrans(BaseSegmentor):
 
         #Pseudo labelling
 
-        # t_labels = self.decode_head.forward(t_logits)
+        t_labels = self.decode_head.forward(t_logits)
 
-        # t_labels = F.interpolate(t_labels,data_samples[0].gt_sem_seg.data.shape[-2:],mode='bilinear',align_corners=True)
+        t_labels = F.interpolate(t_labels,data_samples[0].gt_sem_seg.data.shape[-2:],mode='bilinear',align_corners=True)
 
-        # t_labels = torch.argmax(nn.Softmax(dim=1)(t_labels),dim=1).squeeze(1)
+        t_labels = torch.argmax(nn.Softmax(dim=1)(t_labels),dim=1).squeeze(1)
 
-        # t_labels = torch.mul(t_labels,target_masks) + 255*torch.logical_not(target_masks)
+        t_labels = torch.mul(t_labels,target_masks) + 255*torch.logical_not(target_masks)
 
         # print(t_labels.shape)
         
@@ -927,19 +927,19 @@ class PMTrans(BaseSegmentor):
         
         s_labels = torch.stack(s_labels,dim=0).cuda()
 
-        t_labels = []
+        # t_labels = []
 
-        for label in target_data_samples:
+        # for label in target_data_samples:
 
-            t_labels.append(label.gt_sem_seg.data.squeeze())
+        #     t_labels.append(label.gt_sem_seg.data.squeeze())
         
-        t_labels = torch.stack(t_labels,dim=0).cuda()
+        # t_labels = torch.stack(t_labels,dim=0).cuda()
 
         # print("Applying masks to source and target logits")
 
-        # s_logits = self.decode_head.forward(s_logits, logits=True)
+        s_logits = self.decode_head.forward(s_logits, logits=True)
 
-        # t_logits = self.decode_head.forward(t_logits, logits=True)
+        t_logits = self.decode_head.forward(t_logits, logits=True)
 
         # s_logits = s_logits[0]
         # t_logits = t_logits[0]
@@ -958,8 +958,8 @@ class PMTrans(BaseSegmentor):
 
         #     s_logits[i] = torch.mul(s_logits[i], source_masks_scaled)
 
-        # s_logits = nn.AvgPool2d(4)(s_logits)
-        # t_logits = nn.AvgPool2d(4)(t_logits)
+        s_logits = nn.AvgPool2d(4)(s_logits)
+        t_logits = nn.AvgPool2d(4)(t_logits)
 
         # s_logits_cropped = []
         # t_logits_cropped = []
