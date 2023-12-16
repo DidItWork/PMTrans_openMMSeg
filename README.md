@@ -4,6 +4,10 @@
 
 Please see [Overview](docs/en/overview.md) for the general introduction of MMSegmentation.
 
+## Environment Setup
+
+Please see for [Get Started](docs/en/get_started.md) for MMsegmentation environment setup.
+
 ## Setup Datasets
 
 After unzipping SYNTHIA_RAND_CITYSCAPES dataset into data/synthia, run the following scripts for conversion:
