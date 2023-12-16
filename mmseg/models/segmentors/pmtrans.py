@@ -357,18 +357,6 @@ class PMTrans(BaseSegmentor):
         mem_cls: x C, probabilities of classification classes of all images pixels
         """
 
-        #Create padding masks
-        target_masks = []
-
-        for i in range(len(inputs)):
-            t_mask = torch.zeros(targets.shape[-2:],dtype=torch.bool).cuda()
-            target_padding = target_data_samples[i].metainfo['padding_size']
-            # s_mask[:inputs.shape[-2:][0]-source_padding[-1][-1],:inputs.shape[-2:][1]-source_padding[-1][1]] = 1
-            t_mask[:targets.shape[-2:][0]-target_padding[-1],:targets.shape[-2:][1]-target_padding[1]] = 1
-            target_masks.append(t_mask)
-
-        target_masks = torch.stack(target_masks,dim=0)
-
         t_logits, t_p, t_attn = self.backbone.forward_features(targets)
 
         s_logits, s_p, s_attn = self.backbone.forward_features(inputs)
@@ -399,8 +387,6 @@ class PMTrans(BaseSegmentor):
             t_labels.append(label.gt_sem_seg.data.squeeze())
         
         t_labels = torch.stack(t_labels,dim=0).cuda()
-
-        # print("Applying masks to source and target logits")
 
         s_logits = self.decode_head.forward(s_logits, logits=True)
 
