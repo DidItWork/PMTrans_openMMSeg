@@ -132,8 +132,10 @@ class UPerHead(BaseDecodeHead):
         feats = self.fpn_bottleneck(fpn_outs)
         return feats
 
-    def forward(self, inputs):
+    def forward(self, inputs, logits=False):
         """Forward function."""
         output = self._forward_feature(inputs)
-        output = self.cls_seg(output)
+
+        if not logits: output = self.cls_seg(output)
+        
         return output
