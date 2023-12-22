@@ -755,7 +755,8 @@ class SwinTransformer(BaseModule):
                 outs.append(out)
 
         return outs
-    
+
+@MODELS.register_module()
 class PM_Swin(SwinTransformer):
 
     def forward_features(self, x):
