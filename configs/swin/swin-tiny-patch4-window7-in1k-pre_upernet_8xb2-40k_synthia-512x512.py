@@ -1,5 +1,5 @@
 _base_ = [
-    '../_base_/models/upernet_swin_pm.py', '../_base_/datasets/syn2city_512x512.py',
+    '../_base_/models/upernet_swin.py', '../_base_/datasets/synthia_512x512.py',
     '../_base_/default_runtime.py', '../_base_/schedules/schedule_40k.py'
 ]
 crop_size = (512, 512)
@@ -17,8 +17,7 @@ model = dict(
         drop_path_rate=0.3,
         patch_norm=True),
     decode_head=dict(in_channels=[96, 192, 384, 768], num_classes=19),
-    # auxiliary_head=dict(in_channels=384, num_classes=19)
-    )
+    auxiliary_head=dict(in_channels=384, num_classes=19))
 
 # AdamW optimizer, no weight decay for position embedding & layer norm
 # in backbone

@@ -1,8 +1,8 @@
 _base_ = [
-    '../_base_/models/upernet_swin.py', '../_base_/datasets/synthia.py',
-    '../_base_/default_runtime.py', '../_base_/schedules/schedule_160k.py'
+    '../_base_/models/upernet_swin.py', '../_base_/datasets/cityscapes_512x512.py',
+    '../_base_/default_runtime.py', '../_base_/schedules/schedule_40k.py'
 ]
-crop_size = (380, 640)
+crop_size = (512, 512)
 data_preprocessor = dict(size=crop_size)
 checkpoint_file = 'https://download.openmmlab.com/mmsegmentation/v0.5/pretrain/swin/swin_tiny_patch4_window7_224_20220317-1cdeb081.pth'  # noqa
 model = dict(
@@ -16,8 +16,8 @@ model = dict(
         use_abs_pos_embed=False,
         drop_path_rate=0.3,
         patch_norm=True),
-    decode_head=dict(in_channels=[96, 192, 384, 768], num_classes=23),
-    auxiliary_head=dict(in_channels=384, num_classes=23))
+    decode_head=dict(in_channels=[96, 192, 384, 768], num_classes=19),
+    auxiliary_head=dict(in_channels=384, num_classes=19))
 
 # AdamW optimizer, no weight decay for position embedding & layer norm
 # in backbone
@@ -47,6 +47,6 @@ param_scheduler = [
 ]
 
 # By default, models are trained on 8 GPUs with 2 images per GPU
-train_dataloader = dict(batch_size=1)
+train_dataloader = dict(batch_size=2)
 val_dataloader = dict(batch_size=1)
 test_dataloader = val_dataloader

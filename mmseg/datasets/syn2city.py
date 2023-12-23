@@ -44,7 +44,7 @@ class Syn2CityDataset(BaseSegDataset):
                  seg_map_suffix='_cityscapesLabels.png',
                  target_data_root='',
                  target_suffix='_leftImg8bit.png',
-                 target_seg_map_suffix='_leftImg8bit_cityscapesLabels.png',
+                 target_seg_map_suffix='_gtFine_cityscapesLabels.png',
                  target_prefix: dict = dict(img_path='', seg_map_path=''),
                  target_ann_file='',
                  **kwargs) -> None:

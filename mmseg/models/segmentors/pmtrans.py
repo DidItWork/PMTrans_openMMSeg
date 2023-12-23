@@ -107,8 +107,8 @@ class PMTrans(BaseSegmentor):
 
         self.s_dist_alpha = nn.Parameter(Tensor([1]),requires_grad=True)
         self.s_dist_beta = nn.Parameter(Tensor([1]),requires_grad=True)
-        self.super_ratio = nn.Parameter(Tensor([-2]),requires_grad=True)
-        self.unsuper_ratio = nn.Parameter(Tensor([-2]),requires_grad=True)
+        self.super_ratio = nn.Parameter(Tensor([-2]),requires_grad=False)
+        self.unsuper_ratio = nn.Parameter(Tensor([-2]),requires_grad=False)
 
     def _init_decode_head(self, decode_head: ConfigType) -> None:
         """Initialize ``decode_head``"""
@@ -272,36 +272,38 @@ class PMTrans(BaseSegmentor):
 
         m_s_t_pred = F.interpolate(m_s_t_pred,infer_label.shape[-2:],mode='bilinear',align_corners=True)
 
-        m_s_t_logits = self.decode_head.forward(m_s_t_logits, logits=True)
+        # m_s_t_logits = self.decode_head.forward(m_s_t_logits, logits=True)
+
+        # print(m_s_t_logits.shape)
 
         #Downscale
 
-        m_s_t_logits = nn.AvgPool2d(2)(m_s_t_logits)
+        # m_s_t_logits = nn.AvgPool2d(4)(m_s_t_logits)
 
-        hw = m_s_t_logits.shape[-1]*m_s_t_logits.shape[-2]
+        # hw = m_s_t_logits.shape[-1]*m_s_t_logits.shape[-2]
 
         s_lambda = torch.mean(nn.Flatten()(s_lambda),dim=1)
 
         s_lam = s_lambda
 
-        s_lambda = s_lambda.repeat(1,hw).reshape(1,-1)
+        # s_lambda = s_lambda.repeat(1,hw).reshape(1,-1)
         
-        t_lambda = 1-s_lambda #B H W
+        # t_lambda = 1-s_lambda #B H W
 
-        scale = infer_label.shape[-1]//m_s_t_logits.shape[-1]
+        # scale = infer_label.shape[-1]//m_s_t_logits.shape[-1]
 
         # print("Cosine Distance")
-        m_s_t_s = self.cosine_distance(m_s_t_logits, s_logits)
+        # m_s_t_s = self.cosine_distance(m_s_t_logits, s_logits)
 
-        m_s_t_s_similarity = self.mixup_supervised_dis(m_s_t_s, infer_label, s_lambda, scale)
+        # m_s_t_s_similarity = self.mixup_supervised_dis(m_s_t_s, infer_label, s_lambda, scale)
 
-        m_s_t_t = self.cosine_distance(m_s_t_logits,t_logits)
+        # m_s_t_t = self.cosine_distance(m_s_t_logits,t_logits)
 
 
-        m_s_t_t_similarity = self.mixup_unsupervised_dis(m_s_t_t, t_lambda)
+        # m_s_t_t_similarity = self.mixup_unsupervised_dis(m_s_t_t, t_lambda)
 
-        super_feature_space_loss = self.softplus(self.super_ratio)*m_s_t_s_similarity
-        unsuper_feature_space_loss = self.softplus(self.super_ratio)*m_s_t_t_similarity
+        # super_feature_space_loss = self.softplus(self.super_ratio)*m_s_t_s_similarity
+        # unsuper_feature_space_loss = self.softplus(self.super_ratio)*m_s_t_t_similarity
 
         # print("Mixup soft CE")
         super_m_s_t_s_loss = self.mixup_soft_ce(m_s_t_pred, infer_label, weight_src, s_lam)
@@ -315,8 +317,8 @@ class PMTrans(BaseSegmentor):
         f_loss_dict = dict()
         l_loss_dict = dict()
 
-        f_loss_dict.update(add_prefix(dict(loss_pm_feature=super_feature_space_loss), 'super'))
-        f_loss_dict.update(add_prefix(dict(loss_pm_feature=unsuper_feature_space_loss), 'unsuper'))
+        # f_loss_dict.update(add_prefix(dict(loss_pm_feature=super_feature_space_loss), 'super'))
+        # f_loss_dict.update(add_prefix(dict(loss_pm_feature=unsuper_feature_space_loss), 'unsuper'))
         l_loss_dict.update(add_prefix(dict(loss_ce=super_label_space_loss), 'super'))
         l_loss_dict.update(add_prefix(dict(loss_ce=unsuper_label_space_loss), 'unsuper'))
 
@@ -388,12 +390,12 @@ class PMTrans(BaseSegmentor):
         
         t_labels = torch.stack(t_labels,dim=0).cuda()
 
-        s_logits = self.decode_head.forward(s_logits, logits=True)
+        # s_logits = self.decode_head.forward(s_logits, logits=True)
 
-        t_logits = self.decode_head.forward(t_logits, logits=True)
+        # t_logits = self.decode_head.forward(t_logits, logits=True)
 
-        s_logits = nn.AvgPool2d(2)(s_logits)
-        t_logits = nn.AvgPool2d(2)(t_logits)
+        # s_logits = nn.AvgPool2d(4)(s_logits)
+        # t_logits = nn.AvgPool2d(4)(t_logits)
 
         weight_tgt = torch.ones(self.num_classes).cuda()/self.num_classes
 

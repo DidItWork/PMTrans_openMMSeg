@@ -18,6 +18,7 @@ from mmengine.utils import to_2tuple
 
 from mmseg.registry import MODELS
 from ..utils.embed import PatchEmbed, PatchMerging
+from ..utils import nlc_to_nchw, nchw_to_nlc
 
 
 class WindowMSA(BaseModule):
@@ -759,10 +760,21 @@ class SwinTransformer(BaseModule):
 @MODELS.register_module()
 class PM_Swin(SwinTransformer):
 
-    def forward_features(self, x):
-        x, hw_shape = self.patch_embed(x)
+    "Patch-Mix for Semantic Segmentation using Swin Transformer"
 
-        patch = x
+    def forward_features(self, x, p_in = False):
+        if not p_in:
+            x, hw_shape = self.patch_embed(x)
+
+            patch = nlc_to_nchw(x, hw_shape)
+
+        else:
+            hw_shape = x.shape[-2:]
+
+            patch = x
+
+            x = nchw_to_nlc(x)
+
 
         if self.use_abs_pos_embed:
             x = x + self.absolute_pos_embed

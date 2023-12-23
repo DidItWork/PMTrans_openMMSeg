@@ -60,7 +60,7 @@ def label(config_path=None, checkpoint_path=None, img_dir=None, out_dir=None) ->
 
             label_img = asarray(label_img,np.uint8)
 
-            path = osp.join(out_dir,img_path.replace('.png','_cityscapesLabels.png'))
+            path = osp.join(out_dir,img_path.replace('_leftImg8bit.png','_gtFine_cityscapesLabels.png'))
 
             mkdir_or_exist('/'.join(path.split('/')[:-1]))
 
